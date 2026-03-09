@@ -1,0 +1,10 @@
+<library path="lqr_controller">
+  <class
+    name="lqr_controller/LQRController"
+    type="lqr_controller::LQRController"
+    base_class_type="nav2_core::Controller">
+    <description>
+      LQR-based Nav2 controller plugin.
+    </description>
+  </class>
+</library>

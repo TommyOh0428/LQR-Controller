@@ -4,14 +4,19 @@
 #include <memory>
 #include <string>
 
+#include "rclcpp_lifecycle/lifecycle_node.hpp"
+#include "tf2_ros/buffer.h"
+
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "geometry_msgs/msg/twist.hpp"
 #include "geometry_msgs/msg/twist_stamped.hpp"
 #include "nav2_core/controller.hpp"
 #include "nav2_costmap_2d/costmap_2d_ros.hpp"
 #include "nav_msgs/msg/path.hpp"
-#include "rclcpp_lifecycle/lifecycle_node.hpp"
-#include "tf2_ros/buffer.h"
+
+#include "lqr_controller/lqr_solver.hpp"
+
+#include <Eigen/Dense>
 
 namespace lqr_controller
 {
@@ -40,6 +45,49 @@ public:
   void setPlan(const nav_msgs::msg::Path & path) override;
 
   void setSpeedLimit(const double & speed_limit, const bool & percentage) override;
+
+private:
+  // --- Node / Nav2 handles ---
+  rclcpp_lifecycle::LifecycleNode::WeakPtr node_;
+  std::string plugin_name_;
+  std::shared_ptr<tf2_ros::Buffer> tf_;
+  std::shared_ptr<nav2_costmap_2d::Costmap2DROS> costmap_ros_;
+  rclcpp::Logger logger_{rclcpp::get_logger("lqr_controller")};
+  rclcpp::Clock::SharedPtr clock_;
+
+  // --- Stored path ---
+  nav_msgs::msg::Path global_plan_;
+
+  // --- Tunable parameters (declared as ROS2 params) ---
+  double desired_speed_;         // v_ref constant (m/s)
+  double max_linear_speed_;      // upper clamp for v (m/s)
+  double max_angular_speed_;     // upper clamp for |omega| (rad/s)
+  double lookahead_distance_;    // meters ahead on path for reference point
+  double dt_;                    // discretization timestep (s)
+  int    dare_max_iterations_;   // DARE solver iteration cap
+  double dare_tolerance_;        // DARE convergence threshold
+
+  // Q diagonal weights (3x3 state cost)
+  double q_long_;                // along-track error weight
+  double q_lat_;                 // lateral error weight
+  double q_head_;                // heading error weight
+
+  // R diagonal weights (2x2 control effort cost)
+  double r_v_;                   // linear velocity effort weight
+  double r_omega_;               // angular velocity effort weight
+
+  // --- LQR matrices (Eigen3) ---
+  Eigen::Matrix3d A_d_;                     // 3x3 discrete state matrix
+  Eigen::Matrix<double, 3, 2> B_d_;         // 3x2 discrete input matrix
+  Eigen::Matrix3d Q_;                       // 3x3 state cost
+  Eigen::Matrix2d R_;                       // 2x2 control cost
+  Eigen::Matrix3d P_;                       // 3x3 DARE solution
+  Eigen::Matrix<double, 2, 3> K_;           // 2x3 LQR gain
+
+  // --- Helper methods ---
+  size_t findClosestPoint(const geometry_msgs::msg::PoseStamped & pose);
+  size_t findLookaheadPoint(size_t closest_idx);
+  double getYawFromQuaternion(const geometry_msgs::msg::Quaternion & q);
 };
 
 }  // namespace lqr_controller

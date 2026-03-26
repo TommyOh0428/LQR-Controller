@@ -46,7 +46,8 @@ LQR-Controller/
 ### Prerequisites
 
 - Docker + VS Code with Dev Containers extension
-- WSL2 (for GUI / Gazebo display on Windows)
+- **Windows:** WSL2 (for GUI / Gazebo display)
+- **macOS:** XQuartz (for GUI / Gazebo display) — see [macOS Setup](#macos-setup) below
 
 ### 1. Open in Dev Container
 
@@ -55,10 +56,61 @@ git clone <repo-url>
 code LQR-Controller/
 ```
 
-When prompted "Reopen in Container", click **Yes**.
+**Windows:** When prompted "Reopen in Container", click **Yes**.
 Or manually: `Ctrl+Shift+P` > `Dev Containers: Reopen in Container`
 
+**macOS:** See [macOS Setup](#macos-setup) — you must switch to the Mac devcontainer config first.
+
 First build takes ~5-10 min. Subsequent opens use Docker cache.
+
+---
+
+### macOS Setup
+
+macOS requires XQuartz for GUI forwarding (Gazebo, RViz). The default `devcontainer.json` is WSL2-only and will not work on Mac.
+
+**Step 1 — Install XQuartz**
+
+```bash
+brew install --cask xquartz
+```
+
+Then log out and log back in (required for XQuartz to register as the display server).
+
+**Step 2 — Allow network connections in XQuartz**
+
+Open XQuartz, go to **Preferences > Security**, and check:
+- "Allow connections from network clients"
+
+Then restart XQuartz.
+
+**Step 3 — Allow localhost display access**
+
+Run this in your terminal each time before opening the container:
+
+```bash
+xhost +localhost
+```
+
+**Step 4 — Switch to the Mac devcontainer config**
+
+Copy the Mac config over the default before opening in VS Code:
+
+```bash
+cp .devcontainer/devcontainer.mac.json .devcontainer/devcontainer.json
+```
+
+> **Note:** Do not commit this change. The default `devcontainer.json` is for Windows/WSL2.
+
+**Step 5 — Open in Dev Container**
+
+```bash
+code LQR-Controller/
+```
+
+`Cmd+Shift+P` > `Dev Containers: Reopen in Container`
+
+---
 
 ### 2. Build
 

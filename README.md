@@ -200,7 +200,7 @@ LQR parameters are set in `config/nav2_params.yaml` under the `FollowPath` plugi
 
 Follow the previous steps to setup Gazebo and RViz, set initial pose.
 
-Start recording
+Start recording:
 ```bash
 # lqr recording
 ros2 bag record -o recordings/lqr_run_1 /tf /tf_static /cmd_vel /plan /odom /amcl_pose
@@ -210,7 +210,17 @@ ros2 bag record -o recordings/dwb_run_1 /tf /tf_static /cmd_vel /plan /odom /amc
 ```
 **Note**: make sure to increment the run count.
 
-After recording both, run analysis on the two recordings.
+Set a goal for the Turtlebot:
+```bash
+ros2 topic pub --once /goal_pose geometry_msgs/PoseStamped "{
+  header: {frame_id: 'map'},
+  pose: {position: {x: 2.0, y: 0.5, z: 0.0},
+         orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}}
+}"
+```
+After reaching the goal or done recording, `ctrl + c` to stop the recording (on the terminal that started the recording).
+
+After recording both, run analysis on the two recordings:
 ### Analyze
 
 ```bash

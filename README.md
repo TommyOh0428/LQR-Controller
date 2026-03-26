@@ -82,9 +82,10 @@ ros2 plugin list | grep lqr
 # Terminal 1: Gazebo + Nav2
 export TURTLEBOT3_MODEL=burger
 ros2 launch nav2_bringup tb3_simulation_launch.py \
-    params_file:=$(pwd)/config/nav2_params.yaml
+    params_file:=$(pwd)/config/nav2_params.yaml \
+    headless:=False
 
-# Terminal 2: Send a goal (or use RViz2 "2D Goal Pose")
+# Terminal 2 (optional): Send a goal via CLI instead of RViz
 ros2 topic pub --once /goal_pose geometry_msgs/PoseStamped "{
   header: {frame_id: 'map'},
   pose: {position: {x: 2.0, y: 0.5, z: 0.0},
@@ -92,12 +93,39 @@ ros2 topic pub --once /goal_pose geometry_msgs/PoseStamped "{
 }"
 ```
 
+> **Note:** The Dockerfile sets `TURTLEBOT3_MODEL=waffle` in `.bashrc`. The `export` above overrides it per-session. If you want `burger` permanently, edit `.bashrc` inside the container.
+
+### Navigating with RViz
+
+After launch, RViz opens alongside Gazebo. Navigation requires two steps:
+
+**1. Set initial pose (required before any goal)**
+- Click **"2D Pose Estimate"** in the RViz toolbar
+- Click the map at the robot's starting location in Gazebo and drag to set heading
+- Green particles appear around the robot — AMCL is now localized
+
+**2. Send a navigation goal**
+- Click **"Nav2 Goal"** in the RViz toolbar
+- Click the destination on the map and drag to set goal orientation
+- Nav2 plans a path (green line) and the robot begins moving
+
+```
+RViz toolbar:
+[ 2D Pose Estimate ]  -->  initializes AMCL localization
+[ Nav2 Goal ]         -->  sends goal to Nav2 BT navigator
+```
+
+> **Tip:** If the robot doesn't move after setting a goal, AMCL isn't localized — redo the 2D Pose Estimate step more precisely over the robot's actual Gazebo position.
+
+> **Tip:** If Gazebo launched but the window is missing, run `gzclient` in a new terminal to attach the GUI to the running `gzserver`.
+
 ### DWB Controller (Baseline Comparison)
 
 ```bash
 export TURTLEBOT3_MODEL=burger
 ros2 launch nav2_bringup tb3_simulation_launch.py \
-    params_file:=$(pwd)/config/dwb_params.yaml
+    params_file:=$(pwd)/config/dwb_params.yaml \
+    headless:=False
 ```
 
 ## Configuration
@@ -180,3 +208,8 @@ Full architecture diagram and algorithm details in `AGENTS.md`.
 ### Libraries
 
 11. [Eigen3 Documentation](https://eigen.tuxfamily.org/dox/) — `Matrix3d`, `Matrix<double,3,2>`, `.inverse()`, `.transpose()`, `.cwiseAbs()` used in DARE solver and gain computation
+
+
+
+
+- https://docs.ros.org/en/foxy/Tutorials/Beginner-Client-Libraries/Pluginlib.html

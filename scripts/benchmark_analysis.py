@@ -192,7 +192,24 @@ def analyze_bag(bag_path):
     return results
 
 
-def plot_comparison(all_results):
+def make_output_dir():
+    """Create output/run_<N> directory, incrementing N based on existing runs."""
+    base = 'output'
+    os.makedirs(base, exist_ok=True)
+    existing = [d for d in os.listdir(base) if d.startswith('run_') and os.path.isdir(os.path.join(base, d))]
+    counts = []
+    for d in existing:
+        try:
+            counts.append(int(d.split('_')[1]))
+        except (IndexError, ValueError):
+            pass
+    next_count = max(counts) + 1 if counts else 1
+    run_dir = os.path.join(base, f'run_{next_count}')
+    os.makedirs(run_dir)
+    return run_dir
+
+
+def plot_comparison(all_results, run_dir):
     """Generate comparison plots for all analyzed bags."""
     fig, axes = plt.subplots(2, 2, figsize=(14, 10))
 
@@ -248,8 +265,10 @@ def plot_comparison(all_results):
     axes[1, 1].legend()
 
     plt.tight_layout()
-    plt.savefig('benchmark_comparison.png', dpi=150)
-    print(f"\nPlot saved to benchmark_comparison.png")
+    postfix = '_vs_'.join(r['name'] for r in all_results)
+    out_path = os.path.join(run_dir, f'benchmark_comparison_{postfix}.png')
+    plt.savefig(out_path, dpi=150)
+    print(f"\nPlot saved to {out_path}")
     plt.show()
 
 
@@ -276,7 +295,7 @@ def print_comparison_table(all_results):
     for label, key, fmt in metrics:
         row = f"{label:<25}"
         for r in all_results:
-            row += f"  {r[key]:{fmt}:<20}"
+            row += f"  {format(r[key], fmt):<20}"
         print(row)
 
 
@@ -293,8 +312,24 @@ def main():
             all_results.append(result)
 
     if len(all_results) > 1:
+        run_dir = make_output_dir()
+        print(f"\nSaving results to {run_dir}/")
+
+        import io, sys
+        buf = io.StringIO()
+        old_stdout = sys.stdout
+        sys.stdout = buf
         print_comparison_table(all_results)
-        plot_comparison(all_results)
+        sys.stdout = old_stdout
+        table_text = buf.getvalue()
+        print(table_text, end='')
+
+        txt_path = os.path.join(run_dir, 'comparison.txt')
+        with open(txt_path, 'w') as f:
+            f.write(table_text)
+        print(f"Table saved to {txt_path}")
+
+        plot_comparison(all_results, run_dir)
     elif len(all_results) == 1:
         print("\nOnly one bag provided. Add --bag <path> for comparison.")
 

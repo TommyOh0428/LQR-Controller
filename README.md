@@ -198,15 +198,25 @@ LQR parameters are set in `config/nav2_params.yaml` under the `FollowPath` plugi
 
 ### Record Data
 
-```bash
-ros2 bag record -o lqr_run_1 /tf /tf_static /cmd_vel /plan /odom /amcl_pose
-```
+Follow the previous steps to setup Gazebo and RViz, set initial pose.
 
+Start recording
+```bash
+# lqr recording
+ros2 bag record -o recordings/lqr_run_1 /tf /tf_static /cmd_vel /plan /odom /amcl_pose
+
+# dwb recording
+ros2 bag record -o recordings/dwb_run_1 /tf /tf_static /cmd_vel /plan /odom /amcl_pose
+```
+**Note**: make sure to increment the run count.
+
+After recording both, run analysis on the two recordings.
 ### Analyze
 
 ```bash
-python3 scripts/benchmark_analysis.py --bag lqr_run_1 --bag dwb_run_1
+python3 scripts/benchmark_analysis.py --bag recordings/lqr_run_1 --bag recordings/dwb_run_1
 ```
+Outputs are saved in `output/run_<run_count>`
 
 Metrics: cross-track error, smoothness, time-to-goal, success rate.
 

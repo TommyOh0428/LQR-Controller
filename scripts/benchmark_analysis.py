@@ -18,6 +18,10 @@ Usage:
 import argparse
 import sqlite3
 import os
+
+import matplotlib
+
+matplotlib.use("Agg")  # headless-safe; avoids blocking on plt.show() without a display
 import numpy as np
 import matplotlib.pyplot as plt
 from rclpy.serialization import deserialize_message
@@ -291,7 +295,7 @@ def plot_comparison(all_results, run_dir):
     out_path = os.path.join(run_dir, f'benchmark_comparison_{postfix}.png')
     plt.savefig(out_path, dpi=150)
     print(f"\nPlot saved to {out_path}")
-    plt.show()
+    plt.close(fig)
 
 
 def print_comparison_table(all_results):

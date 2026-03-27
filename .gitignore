@@ -47,3 +47,6 @@ log/
 
 # rosbag recordings
 *rosbag*
+
+# references
+references/**

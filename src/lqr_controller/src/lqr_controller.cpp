@@ -33,6 +33,7 @@ void LQRController::configure(
   node->declare_parameter(plugin_name_ + ".max_linear_speed", 0.22);
   node->declare_parameter(plugin_name_ + ".max_angular_speed", 2.84);
   node->declare_parameter(plugin_name_ + ".lookahead_distance", 0.5);
+  node->declare_parameter(plugin_name_ + ".goal_slowdown_radius", 1.0);
   node->declare_parameter(plugin_name_ + ".dt", 0.05);
   node->declare_parameter(plugin_name_ + ".dare_max_iterations", 1000);
   node->declare_parameter(plugin_name_ + ".dare_tolerance", 1e-9);
@@ -46,6 +47,7 @@ void LQRController::configure(
   node->get_parameter(plugin_name_ + ".max_linear_speed", max_linear_speed_);
   node->get_parameter(plugin_name_ + ".max_angular_speed", max_angular_speed_);
   node->get_parameter(plugin_name_ + ".lookahead_distance", lookahead_distance_);
+  node->get_parameter(plugin_name_ + ".goal_slowdown_radius", goal_slowdown_radius_);
   node->get_parameter(plugin_name_ + ".dt", dt_);
   node->get_parameter(plugin_name_ + ".dare_max_iterations", dare_max_iterations_);
   node->get_parameter(plugin_name_ + ".dare_tolerance", dare_tolerance_);
@@ -103,10 +105,21 @@ void LQRController::setPlan(const nav_msgs::msg::Path & path)
 geometry_msgs::msg::TwistStamped LQRController::computeVelocityCommands(
   const geometry_msgs::msg::PoseStamped & pose,
   const geometry_msgs::msg::Twist & /*velocity*/,
-  nav2_core::GoalChecker * /*goal_checker*/)
+  nav2_core::GoalChecker * goal_checker)
 {
   if (global_plan_.poses.empty()) {
     throw nav2_core::PlannerException("Empty path");
+  }
+
+  if (goal_checker != nullptr) {
+    geometry_msgs::msg::Pose goal_pose = global_plan_.poses.back().pose;
+    if (goal_checker->isGoalReached(pose.pose, goal_pose,
+        geometry_msgs::msg::Twist()))
+    {
+      geometry_msgs::msg::TwistStamped cmd;
+      cmd.header = pose.header;
+      return cmd;
+    }
   }
 
   size_t closest_idx = findClosestPoint(pose);
@@ -126,7 +139,14 @@ geometry_msgs::msg::TwistStamped LQRController::computeVelocityCommands(
 
   Eigen::Vector2d delta_u = -K_ * error;
 
-  double v = desired_speed_ + delta_u(0);
+  double remaining_dist = computeRemainingPathLength(closest_idx);
+  double speed_scale = 1.0;
+  if (goal_slowdown_radius_ > 0.0 && remaining_dist < goal_slowdown_radius_) {
+    speed_scale = remaining_dist / goal_slowdown_radius_;
+    speed_scale = std::clamp(speed_scale, 0.05, 1.0);
+  }
+
+  double v = (desired_speed_ * speed_scale) + delta_u(0);
   double omega = 0.0 + delta_u(1);
 
   v = std::clamp(v, 0.0, max_linear_speed_);
@@ -198,6 +218,19 @@ double LQRController::getYawFromQuaternion(
   double roll, pitch, yaw;
   tf2::Matrix3x3(tf_q).getRPY(roll, pitch, yaw);
   return yaw;
+}
+
+double LQRController::computeRemainingPathLength(size_t from_idx)
+{
+  double length = 0.0;
+  for (size_t i = from_idx; i + 1 < global_plan_.poses.size(); i++) {
+    double dx = global_plan_.poses[i + 1].pose.position.x
+      - global_plan_.poses[i].pose.position.x;
+    double dy = global_plan_.poses[i + 1].pose.position.y
+      - global_plan_.poses[i].pose.position.y;
+    length += std::sqrt(dx * dx + dy * dy);
+  }
+  return length;
 }
 
 double LQRController::computePathHeading(size_t idx)

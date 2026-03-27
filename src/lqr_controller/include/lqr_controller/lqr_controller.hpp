@@ -57,6 +57,7 @@ private:
 
   // --- Stored path ---
   nav_msgs::msg::Path global_plan_;
+  size_t last_closest_idx_{0};
 
   // --- Tunable parameters (declared as ROS2 params) ---
   double desired_speed_;         // v_ref constant (m/s)

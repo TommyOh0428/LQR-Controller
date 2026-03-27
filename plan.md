@@ -5,7 +5,7 @@
 **Team**: Tommy Oh, Ansh Aggarwal, Daniel Senteu, JunHang Wu
 **Submission**: Poster session / presentation (no live demo required)
 
-**Current status**: Controller implemented and integrated with Nav2. First benchmark complete (LQR outperforms DWB on CTE and smoothness). Goal-reaching reliability needs tuning. Hardware deployment not yet attempted.
+**Current status**: Controller bug fixes complete — robot now reaches goals in sim (verified 2026-03-27). Needs repeated trials to confirm reliability before moving to multi-run benchmarking.
 
 ---
 
@@ -80,8 +80,14 @@
 
 **Objective**: Tune LQR Q/R matrices and controller parameters so the robot reliably reaches goals in simulation.
 
-**Files to modify**:
-- [ ] `config/nav2_params.yaml` (Q, R, lookahead, desired_speed)
+**Files modified so far**:
+- [x] `src/lqr_controller/src/lqr_controller.cpp` (6 bug fixes — forward search, heading, slowdown, goal checker, lookahead guard)
+- [x] `src/lqr_controller/include/lqr_controller/lqr_controller.hpp` (new members/methods for fixes)
+- [x] `config/nav2_params.yaml` (progress_checker relaxed, goal_slowdown_radius added)
+- [x] `docs/2026-03-27_controller-bug-fixes.md` (fix documentation)
+
+**Files to modify (remaining)**:
+- [ ] `config/nav2_params.yaml` (Q, R, lookahead, desired_speed — if tuning needed)
 - [ ] `tuning-log.md` (append entries for each experiment)
 
 **Exit criteria**:
@@ -166,9 +172,9 @@
 
 ## Known Risks
 
-1. **Goal-reaching reliability**: First benchmark showed LQR has great CTE but the commit history notes "lqr is not reaching the goal." This is the most critical issue to fix in Phase 4.
+1. ~~**Goal-reaching reliability**~~: **MITIGATED** — 6 controller bugs fixed (2026-03-27). Robot now reaches goals in sim. Needs repeated trials to confirm ≥80% success rate.
 2. **Hardware access**: Physical TurtleBot3 availability may be limited. Start Phase 6 early if hardware is time-shared.
-3. **Uncommitted work on `ansh` branch**: Currently every file in the repo is modified but uncommitted on the `ansh` branch. This must be resolved immediately — either commit or stash.
+3. ~~**Uncommitted work on `ansh` branch**~~: **RESOLVED** — all fixes committed in 4 granular commits (cc55b0a–fd2ccde).
 4. **Single benchmark run**: Only one LQR vs DWB comparison exists. Needs N ≥ 3 for any statistical claim.
 5. **Poster format unknown**: Submission format is a poster session but exact requirements are unclear. Plan for: architecture diagram, results table, 2-3 key plots.
 

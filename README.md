@@ -226,6 +226,9 @@ After recording both, run analysis on the two recordings:
 ```bash
 python3 scripts/benchmark_analysis.py --bag recordings/lqr_run_1 --bag recordings/dwb_run_1
 ```
+
+Use `python3`, not `python` (the latter is not installed in the dev container). The container image includes `python3-matplotlib` and `python3-numpy` for this script; if you see `ModuleNotFoundError: matplotlib`, rebuild the dev container or run `sudo apt-get install -y python3-matplotlib python3-numpy`.
+
 Outputs are saved in `output/run_<run_count>`
 
 Metrics: cross-track error, smoothness, time-to-goal, success rate.

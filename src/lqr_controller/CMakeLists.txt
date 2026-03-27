@@ -16,10 +16,12 @@ find_package(rclcpp_lifecycle REQUIRED)
 
 add_library(${PROJECT_NAME} SHARED
   src/lqr_controller.cpp
+  src/lqr_solver.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC
   include
+  ${EIGEN3_INCLUDE_DIR}
 )
 
 ament_target_dependencies(${PROJECT_NAME}

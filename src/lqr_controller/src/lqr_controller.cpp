@@ -119,7 +119,7 @@ geometry_msgs::msg::TwistStamped LQRController::computeVelocityCommands(
 
   double x_ref = ref_pose.pose.position.x;
   double y_ref = ref_pose.pose.position.y;
-  double theta_ref = getYawFromQuaternion(ref_pose.pose.orientation);
+  double theta_ref = computePathHeading(ref_idx);
 
   Eigen::Vector3d error = lqr_solver::computeBodyFrameError(
     x, y, theta, x_ref, y_ref, theta_ref);
@@ -198,6 +198,38 @@ double LQRController::getYawFromQuaternion(
   double roll, pitch, yaw;
   tf2::Matrix3x3(tf_q).getRPY(roll, pitch, yaw);
   return yaw;
+}
+
+double LQRController::computePathHeading(size_t idx)
+{
+  const auto & q = global_plan_.poses[idx].pose.orientation;
+
+  // Detect identity quaternion — NavFn doesn't set heading on path poses.
+  // Fall back to geometric direction between consecutive waypoints.
+  bool is_identity = (std::abs(q.w - 1.0) < 1e-3 &&
+                      std::abs(q.x) < 1e-3 &&
+                      std::abs(q.y) < 1e-3 &&
+                      std::abs(q.z) < 1e-3);
+
+  if (!is_identity) {
+    return getYawFromQuaternion(q);
+  }
+
+  if (idx + 1 < global_plan_.poses.size()) {
+    double dx = global_plan_.poses[idx + 1].pose.position.x
+      - global_plan_.poses[idx].pose.position.x;
+    double dy = global_plan_.poses[idx + 1].pose.position.y
+      - global_plan_.poses[idx].pose.position.y;
+    return std::atan2(dy, dx);
+  }
+  if (idx > 0) {
+    double dx = global_plan_.poses[idx].pose.position.x
+      - global_plan_.poses[idx - 1].pose.position.x;
+    double dy = global_plan_.poses[idx].pose.position.y
+      - global_plan_.poses[idx - 1].pose.position.y;
+    return std::atan2(dy, dx);
+  }
+  return 0.0;
 }
 
 void LQRController::setSpeedLimit(

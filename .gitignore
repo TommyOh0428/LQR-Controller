@@ -45,8 +45,17 @@ build/
 install/
 log/
 
-# rosbag recordings
+# rosbag recordings (metadata.yaml is committed, .db3 data files are not)
 *rosbag*
+recordings/**/*.db3
 
 # references
 references/**
+
+# IDE
+.vscode/
+
+# Gazebo / ROS2 runtime
+*.pyc
+__pycache__/
+core

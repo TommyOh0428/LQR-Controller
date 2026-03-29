@@ -1,0 +1,90 @@
+---
+description: Rules for physical TurtleBot3 Burger sessions
+globs:
+  - config/nav2_params.yaml
+---
+
+# Hardware Rules — Physical TurtleBot3 Burger
+
+## MANDATORY Pre-Deployment Checklist
+
+Claude MUST run through this checklist before suggesting ANY hardware action. Do not skip steps.
+
+### Safety
+- [ ] Emergency stop is accessible and tested (someone can reach the robot or kill `ros2` immediately)
+- [ ] A teammate is physically present and aware hardware testing is happening
+- [ ] The area is clear of obstacles not accounted for in the map
+- [ ] Battery level is sufficient (check before starting)
+
+### Velocity Limits Confirmed
+- [ ] `max_linear_speed` in nav2_params.yaml is <= 0.22 m/s
+- [ ] `max_angular_speed` in nav2_params.yaml is <= 2.84 rad/s
+- [ ] `desired_speed` is conservative (start at 0.1 m/s for first hardware run, not 0.2)
+
+### Simulation Validation
+- [ ] The exact gains (Q, R) being deployed have been tested in simulation first
+- [ ] The simulation test was successful (robot reached goal, no oscillation, no collision)
+- [ ] The git commit containing these gains is on the branch and pushed
+- [ ] No uncommitted changes exist on the machine being used for hardware
+
+### Navigation Setup
+- [ ] A pre-built map exists for the test environment (or SLAM Toolbox is configured)
+- [ ] AMCL parameters are appropriate for real LiDAR noise (may differ from sim)
+- [ ] Initial pose can be set accurately in RViz
+
+## TurtleBot3 Burger Hardware Limits
+
+| Limit | Value | Notes |
+|-------|-------|-------|
+| Max linear velocity | 0.22 m/s | Absolute hardware limit |
+| Max angular velocity | 2.84 rad/s | Absolute hardware limit |
+| Max linear acceleration | 2.5 m/s² | From velocity_smoother config |
+| Max angular acceleration | 3.2 rad/s² | From velocity_smoother config |
+| Robot radius | 0.22 m (footprint) | Used in costmap config |
+
+## Hardware vs Simulation Differences
+
+Real-world dynamics differ from Gazebo simulation:
+- **Wheel slip**: TurtleBot3 wheels slip on smooth floors, especially during fast turns.
+- **Motor response**: Real motors have lag that Gazebo doesn't model.
+- **Sensor noise**: Real LiDAR and odometry are noisier than simulated.
+- **Latency**: Network and processing delays affect control loop timing.
+
+These mean:
+- Gains that work in sim may oscillate on hardware. Start conservative.
+- Increase `r_omega` for hardware (smoother turns compensate for motor lag).
+- Reduce `desired_speed` for initial hardware tests.
+- Increase `lookahead_distance` slightly (compensates for response lag).
+
+## What Never Gets Changed on Hardware Without Sim Validation
+
+1. Q or R matrix values — must be tested in sim first, committed, then deployed.
+2. Velocity limits — never increased beyond TurtleBot3 Burger specs.
+3. Controller plugin selection — must be verified working in sim before hardware.
+4. Costmap parameters — wrong values can cause the robot to drive into obstacles.
+
+## Hardware Session Workflow
+
+1. Pull latest from the branch. Ensure no local changes.
+2. Run the pre-deployment checklist above.
+3. Launch with the **same** `nav2_params.yaml` that was validated in sim.
+4. Set initial pose in RViz. Wait for AMCL to converge.
+5. Send a short, safe goal first (1m straight ahead in open space).
+6. If successful, proceed to the actual test goal.
+7. Record a rosbag for every hardware run.
+8. After testing, commit any new recordings metadata and results.
+
+## Hardware Commit Rules
+
+- Prefix: `test: hardware —` followed by description.
+- Example: `test: hardware — lqr run on real TB3, q_lat=5.0, reached goal in 35s`
+- Always note which gains were used and whether the run matched simulation behavior.
+- If gains need adjustment for hardware, that's a separate `tune:` commit.
+
+## Emergency Procedures
+
+If the robot behaves unexpectedly:
+1. Kill the controller: `ros2 lifecycle set /controller_server deactivate`
+2. Or stop all: `Ctrl+C` on the launch terminal
+3. Or physically stop the robot (pick it up if safe to do so)
+4. Document what happened before trying again

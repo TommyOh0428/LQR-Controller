@@ -57,12 +57,14 @@ private:
 
   // --- Stored path ---
   nav_msgs::msg::Path global_plan_;
+  size_t last_closest_idx_{0}; // forward-only tracking to prevent backward snap
 
   // --- Tunable parameters (declared as ROS2 params) ---
   double desired_speed_;         // v_ref constant (m/s)
   double max_linear_speed_;      // upper clamp for v (m/s)
   double max_angular_speed_;     // upper clamp for |omega| (rad/s)
   double lookahead_distance_;    // meters ahead on path for reference point
+  double goal_slowdown_radius_;  // distance to goal at which speed ramps down (m)
   double dt_;                    // discretization timestep (s)
   int    dare_max_iterations_;   // DARE solver iteration cap
   double dare_tolerance_;        // DARE convergence threshold
@@ -88,6 +90,8 @@ private:
   size_t findClosestPoint(const geometry_msgs::msg::PoseStamped & pose);
   size_t findLookaheadPoint(size_t closest_idx);
   double getYawFromQuaternion(const geometry_msgs::msg::Quaternion & q);
+  double computePathHeading(size_t idx);
+  double computeRemainingPathLength(size_t from_idx);
 };
 
 }  // namespace lqr_controller

@@ -5,15 +5,23 @@ Reads rosbag2 recordings and computes path-tracking metrics:
   - Cross-track error (mean, max, std)
   - Command velocity smoothness (RMS of dv/dt, domega/dt)
   - Time-to-goal
+  - Success rate (did the robot reach the goal)
+  - Distance to goal (how far short it stopped)
+  - Final position (x, y coordinates where the robot stopped)
   - Comparison plots
 
 Usage:
   python3 benchmark_analysis.py --bag lqr_run_1 --bag dwb_run_1
+  python3 benchmark_analysis.py --bag lqr_run_1 --bag dwb_run_1 --goal_threshold 0.5
 """
 
 import argparse
 import sqlite3
 import os
+
+import matplotlib
+
+matplotlib.use("Agg")  # headless-safe; avoids blocking on plt.show() without a display
 import numpy as np
 import matplotlib.pyplot as plt
 from rclpy.serialization import deserialize_message
@@ -140,7 +148,17 @@ def compute_smoothness(cmd_vel):
     return rms_dv, rms_domega
 
 
-def analyze_bag(bag_path):
+def compute_success(trajectory, plan, threshold=0.3):
+    """Check if the robot reached the goal and return success, distance, and final position."""
+    if not trajectory or len(plan) < 1:
+        return False, float('inf'), 0.0, 0.0
+    goal_x, goal_y = plan[-1]
+    _, final_x, final_y = trajectory[-1]
+    dist = np.sqrt((final_x - goal_x) ** 2 + (final_y - goal_y) ** 2)
+    return dist < threshold, dist, final_x, final_y
+
+
+def analyze_bag(bag_path, goal_threshold=0.3):
     """Run full analysis on a single rosbag."""
     name = os.path.basename(bag_path)
     print(f"\n{'=' * 60}")
@@ -164,6 +182,7 @@ def analyze_bag(bag_path):
     cte = compute_cross_track_errors(trajectory, plan) if plan else []
     rms_dv, rms_domega = compute_smoothness(cmd_vel)
     time_to_goal = trajectory[-1][0] - trajectory[0][0] if len(trajectory) > 1 else 0.0
+    succeeded, dist_to_goal, final_x, final_y = compute_success(trajectory, plan, goal_threshold)
 
     results = {
         'name': name,
@@ -177,6 +196,10 @@ def analyze_bag(bag_path):
         'plan': plan,
         'cmd_vel': cmd_vel,
         'cte': cte,
+        'succeeded': succeeded,
+        'dist_to_goal': dist_to_goal,
+        'final_x': final_x,
+        'final_y': final_y,
     }
 
     print(f"  Trajectory points:  {len(trajectory)}")
@@ -188,6 +211,9 @@ def analyze_bag(bag_path):
     print(f"  Smoothness (dv/dt): {rms_dv:.4f} m/s^2")
     print(f"  Smoothness (dw/dt): {rms_domega:.4f} rad/s^2")
     print(f"  Time to goal:       {time_to_goal:.2f} s")
+    print(f"  Reached goal:       {'Yes' if succeeded else 'No'} (threshold={goal_threshold}m)")
+    print(f"  Distance to goal:   {dist_to_goal:.3f} m")
+    print(f"  Final position:     x={final_x:.3f} m, y={final_y:.3f} m")
 
     return results
 
@@ -269,7 +295,7 @@ def plot_comparison(all_results, run_dir):
     out_path = os.path.join(run_dir, f'benchmark_comparison_{postfix}.png')
     plt.savefig(out_path, dpi=150)
     print(f"\nPlot saved to {out_path}")
-    plt.show()
+    plt.close(fig)
 
 
 def print_comparison_table(all_results):
@@ -298,16 +324,33 @@ def print_comparison_table(all_results):
             row += f"  {format(r[key], fmt):<20}"
         print(row)
 
+    row = f"{'Reached goal':<25}"
+    for r in all_results:
+        row += f"  {'Yes' if r['succeeded'] else 'No':<20}"
+    print(row)
+
+    row = f"{'Distance to goal (m)':<25}"
+    for r in all_results:
+        row += f"  {format(r['dist_to_goal'], '.3f'):<20}"
+    print(row)
+
+    row = f"{'Final position':<25}"
+    for r in all_results:
+        row += f"  x={r['final_x']:.3f} y={r['final_y']:.3f}        "
+    print(row)
+
 
 def main():
     parser = argparse.ArgumentParser(description='Benchmark analysis for Nav2 controllers')
     parser.add_argument('--bag', action='append', required=True,
                         help='Path to rosbag2 directory (can specify multiple)')
+    parser.add_argument('--goal_threshold', type=float, default=0.3,
+                        help='Distance threshold (m) to consider goal reached (default: 0.3)')
     args = parser.parse_args()
 
     all_results = []
     for bag_path in args.bag:
-        result = analyze_bag(bag_path)
+        result = analyze_bag(bag_path, args.goal_threshold)
         if result:
             all_results.append(result)
 

@@ -20,22 +20,20 @@ void LQRController::configure(
   std::shared_ptr<tf2_ros::Buffer> tf,
   std::shared_ptr<nav2_costmap_2d::Costmap2DROS> costmap_ros)
 {
-  // Step 1: Store handles
   node_ = parent;
   plugin_name_ = name;
   tf_ = tf;
   costmap_ros_ = costmap_ros;
 
-  // Step 2: Get logger and clock from parent node
   auto node = node_.lock();
   logger_ = node->get_logger();
   clock_ = node->get_clock();
 
-  // Step 3: Declare and read ROS parameters
   node->declare_parameter(plugin_name_ + ".desired_speed", 0.2);
   node->declare_parameter(plugin_name_ + ".max_linear_speed", 0.22);
   node->declare_parameter(plugin_name_ + ".max_angular_speed", 2.84);
   node->declare_parameter(plugin_name_ + ".lookahead_distance", 0.5);
+  node->declare_parameter(plugin_name_ + ".goal_slowdown_radius", 1.0);
   node->declare_parameter(plugin_name_ + ".dt", 0.05);
   node->declare_parameter(plugin_name_ + ".dare_max_iterations", 1000);
   node->declare_parameter(plugin_name_ + ".dare_tolerance", 1e-9);
@@ -49,6 +47,7 @@ void LQRController::configure(
   node->get_parameter(plugin_name_ + ".max_linear_speed", max_linear_speed_);
   node->get_parameter(plugin_name_ + ".max_angular_speed", max_angular_speed_);
   node->get_parameter(plugin_name_ + ".lookahead_distance", lookahead_distance_);
+  node->get_parameter(plugin_name_ + ".goal_slowdown_radius", goal_slowdown_radius_);
   node->get_parameter(plugin_name_ + ".dt", dt_);
   node->get_parameter(plugin_name_ + ".dare_max_iterations", dare_max_iterations_);
   node->get_parameter(plugin_name_ + ".dare_tolerance", dare_tolerance_);
@@ -58,31 +57,25 @@ void LQRController::configure(
   node->get_parameter(plugin_name_ + ".r_v", r_v_);
   node->get_parameter(plugin_name_ + ".r_omega", r_omega_);
 
-  // Step 4: Build diagonal Q matrix (3x3 state cost)
   Q_ = Eigen::Matrix3d::Zero();
   Q_(0, 0) = q_long_;
   Q_(1, 1) = q_lat_;
   Q_(2, 2) = q_head_;
 
-  // Step 5: Build diagonal R matrix (2x2 control cost)
   R_ = Eigen::Matrix2d::Zero();
   R_(0, 0) = r_v_;
   R_(1, 1) = r_omega_;
 
-  // Step 6: Build linearized discrete system matrices
   lqr_solver::buildLinearSystem(desired_speed_, dt_, A_d_, B_d_);
 
-  // Step 7: Solve DARE for steady-state P
   bool converged = lqr_solver::solveDARE(
     A_d_, B_d_, Q_, R_, dare_max_iterations_, dare_tolerance_, P_);
   if (!converged) {
     RCLCPP_WARN(logger_, "DARE did not converge within %d iterations", dare_max_iterations_);
   }
 
-  // Step 8: Compute LQR gain K
   lqr_solver::computeGain(A_d_, B_d_, P_, R_, K_);
 
-  // Step 9: Log the computed K matrix
   RCLCPP_INFO(logger_, "LQR gain K computed:");
   RCLCPP_INFO(logger_, "  K = [%f, %f, %f]", K_(0, 0), K_(0, 1), K_(0, 2));
   RCLCPP_INFO(logger_, "      [%f, %f, %f]", K_(1, 0), K_(1, 1), K_(1, 2));
@@ -106,52 +99,59 @@ void LQRController::deactivate()
 void LQRController::setPlan(const nav_msgs::msg::Path & path)
 {
   global_plan_ = path;
+  last_closest_idx_ = 0;
 }
 
 geometry_msgs::msg::TwistStamped LQRController::computeVelocityCommands(
   const geometry_msgs::msg::PoseStamped & pose,
   const geometry_msgs::msg::Twist & /*velocity*/,
-  nav2_core::GoalChecker * /*goal_checker*/)
+  nav2_core::GoalChecker * goal_checker)
 {
-  // Step 1: Check for empty path
   if (global_plan_.poses.empty()) {
     throw nav2_core::PlannerException("Empty path");
   }
 
-  // Step 2: Find closest point on path
+  if (goal_checker != nullptr) {
+    geometry_msgs::msg::Pose goal_pose = global_plan_.poses.back().pose;
+    if (goal_checker->isGoalReached(pose.pose, goal_pose,
+        geometry_msgs::msg::Twist()))
+    {
+      geometry_msgs::msg::TwistStamped cmd;
+      cmd.header = pose.header;
+      return cmd;
+    }
+  }
+
   size_t closest_idx = findClosestPoint(pose);
-
-  // Step 3: Advance by lookahead distance to get reference point
   size_t ref_idx = findLookaheadPoint(closest_idx);
-
-  // Step 4: Get reference pose
   const auto & ref_pose = global_plan_.poses[ref_idx];
 
-  // Step 5: Extract robot and reference (x, y, theta)
   double x = pose.pose.position.x;
   double y = pose.pose.position.y;
   double theta = getYawFromQuaternion(pose.pose.orientation);
 
   double x_ref = ref_pose.pose.position.x;
   double y_ref = ref_pose.pose.position.y;
-  double theta_ref = getYawFromQuaternion(ref_pose.pose.orientation);
+  double theta_ref = computePathHeading(ref_idx);
 
-  // Step 6: Compute body-frame tracking error
   Eigen::Vector3d error = lqr_solver::computeBodyFrameError(
     x, y, theta, x_ref, y_ref, theta_ref);
 
-  // Step 7: Apply LQR control law: delta_u = -K * error
   Eigen::Vector2d delta_u = -K_ * error;
 
-  // Step 8-9: Compute velocity commands
-  double v = desired_speed_ + delta_u(0);
+  double remaining_dist = computeRemainingPathLength(closest_idx);
+  double speed_scale = 1.0;
+  if (goal_slowdown_radius_ > 0.0 && remaining_dist < goal_slowdown_radius_) {
+    speed_scale = remaining_dist / goal_slowdown_radius_;
+    speed_scale = std::clamp(speed_scale, 0.05, 1.0);
+  }
+
+  double v = (desired_speed_ * speed_scale) + delta_u(0);
   double omega = 0.0 + delta_u(1);
 
-  // Step 10-11: Clamp to velocity limits
   v = std::clamp(v, 0.0, max_linear_speed_);
   omega = std::clamp(omega, -max_angular_speed_, max_angular_speed_);
 
-  // Step 12-13: Build and return TwistStamped
   geometry_msgs::msg::TwistStamped cmd;
   cmd.header = pose.header;
   cmd.twist.linear.x = v;
@@ -166,13 +166,17 @@ size_t LQRController::findClosestPoint(
   double robot_x = pose.pose.position.x;
   double robot_y = pose.pose.position.y;
 
-  double min_dist_sq = std::numeric_limits<double>::max();
-  size_t closest_idx = 0;
+  // Search forward only from last known position to prevent backward snap.
+  // Small lookback window (2 indices) handles localization jitter.
+  size_t search_start = (last_closest_idx_ > 2) ? last_closest_idx_ - 2 : 0;
 
-  for (size_t i = 0; i < global_plan_.poses.size(); i++) {
+  double min_dist_sq = std::numeric_limits<double>::max();
+  size_t closest_idx = last_closest_idx_;
+
+  for (size_t i = search_start; i < global_plan_.poses.size(); i++) {
     double dx = global_plan_.poses[i].pose.position.x - robot_x;
     double dy = global_plan_.poses[i].pose.position.y - robot_y;
-    double dist_sq = dx * dx + dy * dy;  // skip sqrt for performance
+    double dist_sq = dx * dx + dy * dy;
 
     if (dist_sq < min_dist_sq) {
       min_dist_sq = dist_sq;
@@ -180,11 +184,16 @@ size_t LQRController::findClosestPoint(
     }
   }
 
+  last_closest_idx_ = closest_idx;
   return closest_idx;
 }
 
 size_t LQRController::findLookaheadPoint(size_t closest_idx)
 {
+  if (global_plan_.poses.size() < 2) {
+    return closest_idx;
+  }
+
   double accumulated_dist = 0.0;
 
   for (size_t i = closest_idx; i < global_plan_.poses.size() - 1; i++) {
@@ -199,7 +208,6 @@ size_t LQRController::findLookaheadPoint(size_t closest_idx)
     }
   }
 
-  // Path ends before lookahead distance reached — use last point
   return global_plan_.poses.size() - 1;
 }
 
@@ -210,6 +218,51 @@ double LQRController::getYawFromQuaternion(
   double roll, pitch, yaw;
   tf2::Matrix3x3(tf_q).getRPY(roll, pitch, yaw);
   return yaw;
+}
+
+double LQRController::computeRemainingPathLength(size_t from_idx)
+{
+  double length = 0.0;
+  for (size_t i = from_idx; i + 1 < global_plan_.poses.size(); i++) {
+    double dx = global_plan_.poses[i + 1].pose.position.x
+      - global_plan_.poses[i].pose.position.x;
+    double dy = global_plan_.poses[i + 1].pose.position.y
+      - global_plan_.poses[i].pose.position.y;
+    length += std::sqrt(dx * dx + dy * dy);
+  }
+  return length;
+}
+
+double LQRController::computePathHeading(size_t idx)
+{
+  const auto & q = global_plan_.poses[idx].pose.orientation;
+
+  // Detect identity quaternion — NavFn doesn't set heading on path poses.
+  // Fall back to geometric direction between consecutive waypoints.
+  bool is_identity = (std::abs(q.w - 1.0) < 1e-3 &&
+                      std::abs(q.x) < 1e-3 &&
+                      std::abs(q.y) < 1e-3 &&
+                      std::abs(q.z) < 1e-3);
+
+  if (!is_identity) {
+    return getYawFromQuaternion(q);
+  }
+
+  if (idx + 1 < global_plan_.poses.size()) {
+    double dx = global_plan_.poses[idx + 1].pose.position.x
+      - global_plan_.poses[idx].pose.position.x;
+    double dy = global_plan_.poses[idx + 1].pose.position.y
+      - global_plan_.poses[idx].pose.position.y;
+    return std::atan2(dy, dx);
+  }
+  if (idx > 0) {
+    double dx = global_plan_.poses[idx].pose.position.x
+      - global_plan_.poses[idx - 1].pose.position.x;
+    double dy = global_plan_.poses[idx].pose.position.y
+      - global_plan_.poses[idx - 1].pose.position.y;
+    return std::atan2(dy, dx);
+  }
+  return 0.0;
 }
 
 void LQRController::setSpeedLimit(

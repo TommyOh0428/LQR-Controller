@@ -1,0 +1,79 @@
+---
+description: Rules for LQR Q/R matrix tuning sessions
+globs:
+  - config/nav2_params.yaml
+  - tuning-log.md
+---
+
+# Tuning Rules — LQR Q and R Matrices
+
+## Tuning Workflow — One Change at a Time
+
+1. **Record baseline**: Before changing anything, note current gains and last known performance in `tuning-log.md`.
+2. **Hypothesize**: State what you expect the change to do and why (e.g., "increasing q_lateral should reduce cross-track error at the cost of more aggressive steering").
+3. **Change ONE parameter**: Never change Q and R simultaneously. Never change lookahead and gains simultaneously.
+4. **Run simulation**: Same world, same start/goal, same procedure as baseline.
+5. **Record result**: Quantitative metrics (mean CTE, max CTE, smoothness, time-to-goal, success).
+6. **Commit**: Use `tune:` prefix with exact before/after values and result.
+7. **Decide**: Keep, revert, or try next variation. Record decision in `tuning-log.md`.
+8. **Repeat**: Next experiment starts from step 2.
+
+## Metrics to Capture for Each Experiment
+
+From `scripts/benchmark_analysis.py` output:
+- Mean cross-track error (m)
+- Max cross-track error (m)
+- Smoothness dv/dt (m/s²)
+- Smoothness domega/dt (rad/s²)
+- Time to goal (s)
+- Success (yes/no, distance to goal)
+
+Also note qualitatively:
+- Did the robot oscillate?
+- Did it cut corners?
+- Did it fail to reach the goal? Where did it get stuck?
+
+## Mandatory Commit Message Format for Gain Changes
+
+```
+tune: [parameter] [old]→[new] — [one-line result]
+```
+
+Examples:
+- `tune: q_lateral 3.0→5.0 — mean CTE 0.10→0.07m, no oscillation`
+- `tune: r_omega 0.5→1.0 — smoother turns but 2s slower to goal`
+- `tune: lookahead_distance 0.5→0.8 — less oscillation near corners`
+- `tune: desired_speed 0.2→0.15 — goal reached reliably now (was timing out)`
+
+## Updating tuning-log.md
+
+Append a new entry for EVERY tuning experiment. Never overwrite previous entries. Use this format:
+
+```markdown
+## Experiment N — YYYY-MM-DD
+
+- **Who**: [name]
+- **Starting gains**: Q = diag(q_long, q_lat, q_head), R = diag(r_v, r_omega)
+- **Changed**: [parameter] from [old] to [new]
+- **Hypothesis**: [why this change]
+- **Test conditions**: [sim/hardware], [world], [start→goal poses]
+- **Result**: mean CTE = X m, max CTE = X m, time = X s, success = yes/no
+- **Conclusion**: keep / revert / try next
+- **Next experiment**: [hypothesis for next change]
+- **Commit**: [git hash]
+```
+
+## Parameter Reference and Safe Ranges
+
+| Parameter | Current | Safe range | Effect of increase |
+|-----------|---------|------------|-------------------|
+| q_longitudinal | 1.0 | 0.1–10.0 | Penalizes being ahead/behind on path |
+| q_lateral | 3.0 | 0.5–20.0 | Tighter cross-track following |
+| q_heading | 1.0 | 0.1–10.0 | Penalizes pointing away from path |
+| r_v | 1.0 | 0.1–10.0 | Less aggressive speed corrections |
+| r_omega | 0.5 | 0.1–10.0 | Smoother/slower turns |
+| lookahead_distance | 0.5 | 0.2–1.5 | Smoother but cuts corners |
+| desired_speed | 0.2 | 0.05–0.22 | Faster but harder to track |
+| dt | 0.05 | 0.01–0.1 | Discretization step (rarely changed) |
+
+If DARE stops converging after a parameter change, the values are too extreme. Revert immediately.

@@ -66,8 +66,7 @@ private:
   double lookahead_distance_;    // meters ahead on path for reference point
   double goal_slowdown_radius_;  // distance to goal at which speed ramps down (m)
   double dt_;                    // discretization timestep (s)
-  int    dare_max_iterations_;   // DARE solver iteration cap
-  double dare_tolerance_;        // DARE convergence threshold
+  int    lqr_horizon_;           // number of steps for receding-horizon LQR
 
   // Q diagonal weights (3x3 state cost)
   double q_long_;                // along-track error weight
@@ -79,12 +78,8 @@ private:
   double r_omega_;               // angular velocity effort weight
 
   // --- LQR matrices (Eigen3) ---
-  Eigen::Matrix3d A_d_;                     // 3x3 discrete state matrix
-  Eigen::Matrix<double, 3, 2> B_d_;         // 3x2 discrete input matrix
   Eigen::Matrix3d Q_;                       // 3x3 state cost
   Eigen::Matrix2d R_;                       // 2x2 control cost
-  Eigen::Matrix3d P_;                       // 3x3 DARE solution
-  Eigen::Matrix<double, 2, 3> K_;           // 2x3 LQR gain
 
   // --- Helper methods ---
   size_t findClosestPoint(const geometry_msgs::msg::PoseStamped & pose);
@@ -92,6 +87,7 @@ private:
   double getYawFromQuaternion(const geometry_msgs::msg::Quaternion & q);
   double computePathHeading(size_t idx);
   double computeRemainingPathLength(size_t from_idx);
+  double computeReferenceSpeed(size_t from_idx, double remaining_dist);
 };
 
 }  // namespace lqr_controller

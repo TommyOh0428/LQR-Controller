@@ -6,6 +6,45 @@
 namespace lqr_solver
 {
 
+bool solveRecedingHorizonLQR(
+  const std::vector<Eigen::Matrix3d> & A_refs,
+  const std::vector<Eigen::Matrix<double, 3, 2>> & B_refs,
+  const Eigen::Matrix3d & Q,
+  const Eigen::Matrix2d & R,
+  const Eigen::Matrix3d & Q_f,
+  Eigen::Matrix<double, 2, 3> & K_0)
+{
+  int N = static_cast<int>(A_refs.size());
+  if (N == 0 || B_refs.size() != A_refs.size()) {
+    return false;
+  }
+
+  // Backward Riccati recursion: P_N = Q_f, then sweep back to t=0
+  Eigen::Matrix3d P = Q_f;
+
+  for (int t = N - 1; t >= 0; t--) {
+    const auto & A_t = A_refs[t];
+    const auto & B_t = B_refs[t];
+
+    // M = R + B_t^T P B_t
+    Eigen::Matrix2d M = R + B_t.transpose() * P * B_t;
+
+    // K_t = M^{-1} B_t^T P A_t
+    Eigen::Matrix<double, 2, 3> K_t = M.inverse() * B_t.transpose() * P * A_t;
+
+    // P_t = Q + A_t^T P A_t - A_t^T P B_t K_t
+    P = Q + A_t.transpose() * P * A_t
+      - A_t.transpose() * P * B_t * K_t;
+
+    // Save K at the first timestep
+    if (t == 0) {
+      K_0 = K_t;
+    }
+  }
+
+  return true;
+}
+
 void buildLinearSystem(
   double v_ref, double dt,
   Eigen::Matrix3d & A_d,

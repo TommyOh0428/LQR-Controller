@@ -16,6 +16,8 @@ Usage:
 """
 
 import argparse
+import bisect
+import math
 import sqlite3
 import os
 
@@ -26,7 +28,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from rclpy.serialization import deserialize_message
 from geometry_msgs.msg import PoseWithCovarianceStamped, Twist
-from nav_msgs.msg import Path
+from nav_msgs.msg import Odometry, Path
+from tf2_msgs.msg import TFMessage
 
 
 def read_messages(bag_path, topic):
@@ -61,8 +64,75 @@ def get_msg_type(topic):
     return topic_types.get(topic)
 
 
+def extract_map_to_odom_transforms(bag_path):
+    """Extract map->odom transforms from /tf as sorted list of (timestamp_ns, x, y, yaw)."""
+    messages = read_messages(bag_path, '/tf')
+    transforms = []
+    for timestamp, data in messages:
+        msg = deserialize_message(data, TFMessage)
+        for t in msg.transforms:
+            if t.header.frame_id == 'map' and t.child_frame_id == 'odom':
+                x = t.transform.translation.x
+                y = t.transform.translation.y
+                q = t.transform.rotation
+                yaw = math.atan2(
+                    2.0 * (q.w * q.z + q.x * q.y),
+                    1.0 - 2.0 * (q.y * q.y + q.z * q.z),
+                )
+                ts = t.header.stamp.sec * 1_000_000_000 + t.header.stamp.nanosec
+                transforms.append((ts, x, y, yaw))
+    transforms.sort(key=lambda t: t[0])
+    return transforms
+
+
+def apply_transform(odom_x, odom_y, tf_x, tf_y, tf_yaw):
+    """Apply a map->odom transform to convert odom-frame coords to map-frame."""
+    cos_yaw = math.cos(tf_yaw)
+    sin_yaw = math.sin(tf_yaw)
+    map_x = cos_yaw * odom_x - sin_yaw * odom_y + tf_x
+    map_y = sin_yaw * odom_x + cos_yaw * odom_y + tf_y
+    return map_x, map_y
+
+
+def find_nearest_tf(tf_timestamps, tf_data, query_ts):
+    """Binary-search for the nearest TF transform by timestamp."""
+    idx = bisect.bisect_left(tf_timestamps, query_ts)
+    if idx == 0:
+        return tf_data[0]
+    if idx >= len(tf_data):
+        return tf_data[-1]
+    before = tf_data[idx - 1]
+    after = tf_data[idx]
+    if (query_ts - before[0]) <= (after[0] - query_ts):
+        return before
+    return after
+
+
 def extract_trajectory(bag_path):
-    """Extract robot trajectory from /amcl_pose as list of (t, x, y)."""
+    """Extract robot trajectory in map frame.
+
+    Prefers /odom + TF (dense, ~20 Hz) over /amcl_pose (sparse, ~1 Hz).
+    """
+    tf_data = extract_map_to_odom_transforms(bag_path)
+    odom_msgs = read_messages(bag_path, '/odom')
+
+    if tf_data and odom_msgs:
+        tf_timestamps = [t[0] for t in tf_data]
+        trajectory = []
+        for timestamp, data in odom_msgs:
+            msg = deserialize_message(data, Odometry)
+            ox = msg.pose.pose.position.x
+            oy = msg.pose.pose.position.y
+            t_sec = timestamp * 1e-9
+
+            _, tf_x, tf_y, tf_yaw = find_nearest_tf(tf_timestamps, tf_data, timestamp)
+            mx, my = apply_transform(ox, oy, tf_x, tf_y, tf_yaw)
+            trajectory.append((t_sec, mx, my))
+
+        if trajectory:
+            return trajectory
+
+    # Fallback: /amcl_pose (sparse but already in map frame)
     messages = read_messages(bag_path, '/amcl_pose')
     trajectory = []
     for timestamp, data in messages:
@@ -75,15 +145,22 @@ def extract_trajectory(bag_path):
 
 
 def extract_plan(bag_path):
-    """Extract the last planned path from /plan topic."""
+    """Extract the longest planned path from /plan topic.
+
+    Nav2 may replan mid-navigation, producing shorter fragments.
+    The longest plan is the most complete reference path.
+    """
     messages = read_messages(bag_path, '/plan')
     if not messages:
         return []
 
-    _, data = messages[-1]
-    msg = deserialize_message(data, Path)
-    path = [(p.pose.position.x, p.pose.position.y) for p in msg.poses]
-    return path
+    best_path = []
+    for _, data in messages:
+        msg = deserialize_message(data, Path)
+        path = [(p.pose.position.x, p.pose.position.y) for p in msg.poses]
+        if len(path) > len(best_path):
+            best_path = path
+    return best_path
 
 
 def extract_cmd_vel(bag_path):

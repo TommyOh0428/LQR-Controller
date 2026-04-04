@@ -31,8 +31,12 @@ LQR-Controller/
 │   ├── package.xml
 │   └── lqr_controller_plugin.xml
 ├── config/
-│   ├── nav2_params.yaml             # Nav2 config (LQR controller)
-│   └── dwb_params.yaml              # Nav2 config (DWB baseline)
+│   ├── lqr_navfn_params.yaml        # LQR + NavFn
+│   ├── lqr_smac_params.yaml         # LQR + Smac 2D
+│   ├── dwb_navfn_params.yaml        # DWB + NavFn
+│   ├── dwb_smac_params.yaml         # DWB + Smac 2D
+│   ├── mppi_navfn_params.yaml       # MPPI + NavFn
+│   └── mppi_smac_params.yaml        # MPPI + Smac 2D
 ├── scripts/
 │   └── benchmark_analysis.py        # Rosbag metrics analysis
 ├── docs/                            # Timestamped implementation notes
@@ -128,13 +132,26 @@ ros2 plugin list | grep lqr
 
 ## Running the Simulation
 
-### LQR Controller
+### Available Configurations
+
+Each config file combines one controller with one planner:
+
+| Config file | Controller | Planner |
+|---|---|---|
+| `config/lqr_navfn_params.yaml` | LQR | NavFn |
+| `config/lqr_smac_params.yaml` | LQR | Smac 2D |
+| `config/dwb_navfn_params.yaml` | DWB | NavFn |
+| `config/dwb_smac_params.yaml` | DWB | Smac 2D |
+| `config/mppi_navfn_params.yaml` | MPPI | NavFn |
+| `config/mppi_smac_params.yaml` | MPPI | Smac 2D |
+
+### Launching a Configuration
 
 ```bash
-# Terminal 1: Gazebo + Nav2
+# Pick any config from the table above
 export TURTLEBOT3_MODEL=burger
 ros2 launch nav2_bringup tb3_simulation_launch.py \
-    params_file:=$(pwd)/config/nav2_params.yaml \
+    params_file:=$(pwd)/config/lqr_navfn_params.yaml \
     headless:=False
 
 # Terminal 2 (optional): Send a goal via CLI instead of RViz
@@ -171,18 +188,9 @@ RViz toolbar:
 
 > **Tip:** If Gazebo launched but the window is missing, run `gzclient` in a new terminal to attach the GUI to the running `gzserver`.
 
-### DWB Controller (Baseline Comparison)
-
-```bash
-export TURTLEBOT3_MODEL=burger
-ros2 launch nav2_bringup tb3_simulation_launch.py \
-    params_file:=$(pwd)/config/dwb_params.yaml \
-    headless:=False
-```
-
 ## Configuration
 
-LQR parameters are set in `config/nav2_params.yaml` under the `FollowPath` plugin:
+LQR parameters are set in `config/lqr_navfn_params.yaml` under the `FollowPath` plugin:
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
@@ -200,15 +208,15 @@ LQR parameters are set in `config/nav2_params.yaml` under the `FollowPath` plugi
 
 Follow the previous steps to setup Gazebo and RViz, set initial pose.
 
-Start recording:
+Start recording (use naming convention `{controller}_{planner}_run_{N}`):
 ```bash
-# lqr recording
-ros2 bag record -o recordings/lqr_run_1 /tf /tf_static /cmd_vel /plan /odom /amcl_pose
+# Example: LQR + NavFn, run 1
+ros2 bag record -o recordings/lqr_navfn_run_1 /tf /tf_static /cmd_vel /plan /odom /amcl_pose
 
-# dwb recording
-ros2 bag record -o recordings/dwb_run_1 /tf /tf_static /cmd_vel /plan /odom /amcl_pose
+# Example: MPPI + Smac, run 1
+ros2 bag record -o recordings/mppi_smac_run_1 /tf /tf_static /cmd_vel /plan /odom /amcl_pose
 ```
-**Note**: make sure to increment the run count.
+**Note**: increment the run count for each trial.
 
 Set a goal for the Turtlebot:
 ```bash
@@ -220,11 +228,21 @@ ros2 topic pub --once /goal_pose geometry_msgs/PoseStamped "{
 ```
 After reaching the goal or done recording, `ctrl + c` to stop the recording (on the terminal that started the recording).
 
-After recording both, run analysis on the two recordings:
+After recording, run analysis on any combination of bags:
 ### Analyze
 
 ```bash
-python3 scripts/benchmark_analysis.py --bag recordings/lqr_run_1 --bag recordings/dwb_run_1
+# Compare two combos
+python3 scripts/benchmark_analysis.py --bag recordings/lqr_navfn_run_1 --bag recordings/dwb_navfn_run_1
+
+# Compare all 6 combos
+python3 scripts/benchmark_analysis.py \
+    --bag recordings/lqr_navfn_run_1 \
+    --bag recordings/lqr_smac_run_1 \
+    --bag recordings/dwb_navfn_run_1 \
+    --bag recordings/dwb_smac_run_1 \
+    --bag recordings/mppi_navfn_run_1 \
+    --bag recordings/mppi_smac_run_1
 ```
 
 Use `python3`, not `python` (the latter is not installed in the dev container). The container image includes `python3-matplotlib` and `python3-numpy` for this script; if you see `ModuleNotFoundError: matplotlib`, rebuild the dev container or run `sudo apt-get install -y python3-matplotlib python3-numpy`.

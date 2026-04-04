@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <vector>
 
 #include "nav2_core/controller.hpp"
 #include "nav2_core/exceptions.hpp"
@@ -35,9 +36,8 @@ void LQRController::configure(
   node->declare_parameter(plugin_name_ + ".lookahead_distance", 0.5);
   node->declare_parameter(plugin_name_ + ".goal_slowdown_radius", 1.0);
   node->declare_parameter(plugin_name_ + ".dt", 0.05);
-  node->declare_parameter(plugin_name_ + ".dare_max_iterations", 1000);
-  node->declare_parameter(plugin_name_ + ".dare_tolerance", 1e-9);
-  node->declare_parameter(plugin_name_ + ".q_longitudinal", 1.0);
+  node->declare_parameter(plugin_name_ + ".lqr_horizon", 10);
+  node->declare_parameter(plugin_name_ + ".q_long", 1.0);
   node->declare_parameter(plugin_name_ + ".q_lateral", 3.0);
   node->declare_parameter(plugin_name_ + ".q_heading", 1.0);
   node->declare_parameter(plugin_name_ + ".r_v", 1.0);
@@ -49,9 +49,8 @@ void LQRController::configure(
   node->get_parameter(plugin_name_ + ".lookahead_distance", lookahead_distance_);
   node->get_parameter(plugin_name_ + ".goal_slowdown_radius", goal_slowdown_radius_);
   node->get_parameter(plugin_name_ + ".dt", dt_);
-  node->get_parameter(plugin_name_ + ".dare_max_iterations", dare_max_iterations_);
-  node->get_parameter(plugin_name_ + ".dare_tolerance", dare_tolerance_);
-  node->get_parameter(plugin_name_ + ".q_longitudinal", q_long_);
+  node->get_parameter(plugin_name_ + ".lqr_horizon", lqr_horizon_);
+  node->get_parameter(plugin_name_ + ".q_long", q_long_);
   node->get_parameter(plugin_name_ + ".q_lateral", q_lat_);
   node->get_parameter(plugin_name_ + ".q_heading", q_head_);
   node->get_parameter(plugin_name_ + ".r_v", r_v_);
@@ -66,19 +65,8 @@ void LQRController::configure(
   R_(0, 0) = r_v_;
   R_(1, 1) = r_omega_;
 
-  lqr_solver::buildLinearSystem(desired_speed_, dt_, A_d_, B_d_);
-
-  bool converged = lqr_solver::solveDARE(
-    A_d_, B_d_, Q_, R_, dare_max_iterations_, dare_tolerance_, P_);
-  if (!converged) {
-    RCLCPP_WARN(logger_, "DARE did not converge within %d iterations", dare_max_iterations_);
-  }
-
-  lqr_solver::computeGain(A_d_, B_d_, P_, R_, K_);
-
-  RCLCPP_INFO(logger_, "LQR gain K computed:");
-  RCLCPP_INFO(logger_, "  K = [%f, %f, %f]", K_(0, 0), K_(0, 1), K_(0, 2));
-  RCLCPP_INFO(logger_, "      [%f, %f, %f]", K_(1, 0), K_(1, 1), K_(1, 2));
+  RCLCPP_INFO(logger_, "LQR configured: horizon=%d, dt=%.3f, v_ref=%.2f",
+    lqr_horizon_, dt_, desired_speed_);
 }
 
 void LQRController::cleanup()
@@ -123,6 +111,60 @@ geometry_msgs::msg::TwistStamped LQRController::computeVelocityCommands(
   }
 
   size_t closest_idx = findClosestPoint(pose);
+  double remaining_dist = computeRemainingPathLength(closest_idx);
+
+  // Build horizon window: N reference states starting from closest point
+  int N = lqr_horizon_;
+  size_t path_len = global_plan_.poses.size();
+
+  std::vector<Eigen::Matrix3d> A_refs;
+  std::vector<Eigen::Matrix<double, 3, 2>> B_refs;
+  A_refs.reserve(N);
+  B_refs.reserve(N);
+
+  double dist_along_path = 0.0;
+  size_t prev_idx = closest_idx;
+
+  for (int t = 0; t < N; t++) {
+    // Walk along the path to find the reference index for this horizon step
+    double target_dist = (t + 1) * (lookahead_distance_ / N);
+    size_t ref_idx = prev_idx;
+
+    while (ref_idx + 1 < path_len && dist_along_path < target_dist) {
+      double dx = global_plan_.poses[ref_idx + 1].pose.position.x
+        - global_plan_.poses[ref_idx].pose.position.x;
+      double dy = global_plan_.poses[ref_idx + 1].pose.position.y
+        - global_plan_.poses[ref_idx].pose.position.y;
+      dist_along_path += std::sqrt(dx * dx + dy * dy);
+      ref_idx++;
+    }
+    prev_idx = ref_idx;
+
+    // Compute reference speed at this horizon step (slows near goal)
+    double step_remaining = remaining_dist - target_dist;
+    if (step_remaining < 0.0) { step_remaining = 0.0; }
+    double v_ref = computeReferenceSpeed(ref_idx, step_remaining);
+
+    Eigen::Matrix3d A_t;
+    Eigen::Matrix<double, 3, 2> B_t;
+    lqr_solver::buildLinearSystem(v_ref, dt_, A_t, B_t);
+    A_refs.push_back(A_t);
+    B_refs.push_back(B_t);
+  }
+
+  // Solve receding-horizon LQR — returns K_0
+  Eigen::Matrix<double, 2, 3> K_0;
+  bool ok = lqr_solver::solveRecedingHorizonLQR(A_refs, B_refs, Q_, R_, Q_, K_0);
+
+  if (!ok) {
+    // Zero-command fallback on solver failure
+    RCLCPP_WARN(logger_, "Receding-horizon LQR failed, sending zero command");
+    geometry_msgs::msg::TwistStamped cmd;
+    cmd.header = pose.header;
+    return cmd;
+  }
+
+  // Use first lookahead point as reference for error computation
   size_t ref_idx = findLookaheadPoint(closest_idx);
   const auto & ref_pose = global_plan_.poses[ref_idx];
 
@@ -137,9 +179,8 @@ geometry_msgs::msg::TwistStamped LQRController::computeVelocityCommands(
   Eigen::Vector3d error = lqr_solver::computeBodyFrameError(
     x, y, theta, x_ref, y_ref, theta_ref);
 
-  Eigen::Vector2d delta_u = -K_ * error;
+  Eigen::Vector2d delta_u = -K_0 * error;
 
-  double remaining_dist = computeRemainingPathLength(closest_idx);
   double speed_scale = 1.0;
   if (goal_slowdown_radius_ > 0.0 && remaining_dist < goal_slowdown_radius_) {
     speed_scale = remaining_dist / goal_slowdown_radius_;
@@ -263,6 +304,16 @@ double LQRController::computePathHeading(size_t idx)
     return std::atan2(dy, dx);
   }
   return 0.0;
+}
+
+double LQRController::computeReferenceSpeed(size_t /*from_idx*/, double remaining_dist)
+{
+  double speed_scale = 1.0;
+  if (goal_slowdown_radius_ > 0.0 && remaining_dist < goal_slowdown_radius_) {
+    speed_scale = remaining_dist / goal_slowdown_radius_;
+    speed_scale = std::clamp(speed_scale, 0.05, 1.0);
+  }
+  return desired_speed_ * speed_scale;
 }
 
 void LQRController::setSpeedLimit(

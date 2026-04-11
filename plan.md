@@ -102,23 +102,43 @@
 
 ---
 
-## Phase 5 — Multi-Run Statistical Benchmarking [ ] NOT STARTED
+## Phase 5 — Multi-Run Statistical Benchmarking (3×2 Matrix) [ ] NOT STARTED
 
-**Objective**: Run multiple benchmark trials (≥ 3 per controller) for statistical validity. Compare LQR vs DWB with confidence.
+**Objective**: Run multiple benchmark trials (≥ 3 per combo) across a 3-controller × 2-planner matrix for statistical validity.
+
+**Test matrix** (6 combos, ≥ 3 runs each = 18 runs minimum):
+
+```
+                NavFn          Smac 2D
+  LQR           ✓               ✓
+  DWB           ✓               ✓
+  MPPI          ✓               ✓
+```
+
+**Config files** (all in `config/`):
+- [x] `lqr_navfn_params.yaml` — LQR + NavFn
+- [x] `lqr_smac_params.yaml` — LQR + Smac 2D
+- [x] `dwb_navfn_params.yaml` — DWB + NavFn
+- [x] `dwb_smac_params.yaml` — DWB + Smac 2D
+- [x] `mppi_navfn_params.yaml` — MPPI + NavFn
+- [x] `mppi_smac_params.yaml` — MPPI + Smac 2D
+
+**Recording naming convention**: `recordings/{controller}_{planner}_run_{N}/`
+- e.g. `recordings/lqr_navfn_run_1/`, `recordings/mppi_smac_run_2/`
 
 **Files to create/modify**:
-- [ ] `recordings/lqr_run_2/`, `lqr_run_3/`, etc.
-- [ ] `recordings/dwb_run_2/`, `dwb_run_3/`, etc.
-- [ ] `output/run_2/`, `run_3/`, etc.
-- [ ] Possibly extend `benchmark_analysis.py` for multi-run aggregation
+- [ ] `recordings/{controller}_{planner}_run_{1,2,3}/` (18 recordings)
+- [ ] `output/` (comparison results)
+- [ ] `scripts/benchmark_analysis.py` (extend for multi-run aggregation and matrix output)
 
 **Exit criteria**:
-- [ ] ≥ 3 LQR runs and ≥ 3 DWB runs with same start/goal in same world
-- [ ] Mean and std reported for each metric across runs
-- [ ] Comparison table with statistical summary saved in `output/`
-- [ ] Clear statement: "LQR is better/worse/comparable on [metric] with N runs"
+- [ ] ≥ 3 runs per combo (18 total) with same start/goal in same world
+- [ ] Mean and std reported for each metric across runs per combo
+- [ ] 3×2 comparison matrix with statistical summary saved in `output/`
+- [ ] Bar charts with error bars for key metrics (CTE, smoothness, time-to-goal)
+- [ ] Clear statement per metric: which controller+planner combo performs best
 
-**Closing commit**: `test: complete multi-run LQR vs DWB benchmark — N runs each`
+**Closing commit**: `test: complete 3x2 benchmark matrix — N runs per combo`
 **Owner**: Daniel, JunHang
 
 ---
@@ -128,7 +148,7 @@
 **Objective**: Deploy the LQR controller on a physical TurtleBot3 Burger and validate real-world performance.
 
 **Files to create/modify**:
-- [ ] `config/nav2_params.yaml` (may need hardware-specific tuning)
+- [ ] `config/lqr_navfn_params.yaml` (may need hardware-specific tuning)
 - [ ] `tuning-log.md` (hardware tuning entries)
 - [ ] `recordings/lqr_hw_run_1/`, etc.
 - [ ] Possibly a hardware-specific params file if gains differ significantly
@@ -160,7 +180,7 @@
 
 **Exit criteria**:
 - [ ] README has clear build/run/benchmark instructions (already mostly done)
-- [ ] README includes a results summary table (LQR vs DWB key metrics)
+- [ ] README includes a results summary table (3×2 matrix key metrics)
 - [ ] Poster figures generated and saved
 - [ ] No uncommitted changes on any branch
 - [ ] All branches merged to main via PR

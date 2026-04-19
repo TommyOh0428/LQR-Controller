@@ -46,6 +46,7 @@ void MPPIController::configure(
   node->declare_parameter(plugin_name_ + ".epsilon", 1e-9);
   node->declare_parameter(plugin_name_ + ".seed", 7);
   node->declare_parameter(plugin_name_ + ".goal_slowdown_radius", 1.0);
+  node->declare_parameter(plugin_name_ + ".lookahead_distance", 1.5);
   node->declare_parameter(plugin_name_ + ".w_path", 8.0);
   node->declare_parameter(plugin_name_ + ".w_head", 1.0);
   node->declare_parameter(plugin_name_ + ".w_goal", 2.0);
@@ -66,6 +67,7 @@ void MPPIController::configure(
   node->get_parameter(plugin_name_ + ".epsilon", epsilon_);
   node->get_parameter(plugin_name_ + ".seed", seed_);
   node->get_parameter(plugin_name_ + ".goal_slowdown_radius", goal_slowdown_radius_);
+  node->get_parameter(plugin_name_ + ".lookahead_distance", lookahead_distance_);
   node->get_parameter(plugin_name_ + ".w_path", w_path_);
   node->get_parameter(plugin_name_ + ".w_head", w_head_);
   node->get_parameter(plugin_name_ + ".w_goal", w_goal_);
@@ -144,6 +146,24 @@ geometry_msgs::msg::TwistStamped MPPIController::computeVelocityCommands(
   last_closest_idx_ = findClosestPoint(pose);
   double remaining_dist = computeRemainingPathLength(last_closest_idx_);
 
+  // Walk forward along the plan from our current projection until we've
+  // accumulated `lookahead_distance_` arc-length. That point becomes the
+  // per-step "carrot" target. Shorter plan -> clamp to final goal.
+  {
+    size_t i = last_closest_idx_;
+    double acc = 0.0;
+    while (i + 1 < global_plan_.poses.size() && acc < lookahead_distance_) {
+      double ddx = global_plan_.poses[i + 1].pose.position.x
+                 - global_plan_.poses[i].pose.position.x;
+      double ddy = global_plan_.poses[i + 1].pose.position.y
+                 - global_plan_.poses[i].pose.position.y;
+      acc += std::sqrt(ddx * ddx + ddy * ddy);
+      i++;
+    }
+    carrot_x_ = global_plan_.poses[i].pose.position.x;
+    carrot_y_ = global_plan_.poses[i].pose.position.y;
+  }
+
   // Build a step-cost closure that captures `this` for access to costmap + path.
   auto cost_fn = [this](const mppi_solver::State & xn,
                         const mppi_solver::Action & u, int t) -> double {
@@ -196,14 +216,12 @@ double MPPIController::stepCost(
   while (dth < -M_PI) { dth += 2.0 * M_PI; }
   double head_err_sq = dth * dth;
 
-  // goal cost (only on final horizon step)
-  double goal_err_sq = 0.0;
-  if (t == horizon_ - 1) {
-    const auto & gp = global_plan_.poses.back().pose.position;
-    double gx = gp.x - px;
-    double gy = gp.y - py;
-    goal_err_sq = gx * gx + gy * gy;
-  }
+  // Carrot pull applied at every step: gives a consistent forward gradient
+  // regardless of how far the true goal is. Prevents stall-in-open-space.
+  (void)t;
+  double cx = carrot_x_ - px;
+  double cy = carrot_y_ - py;
+  double goal_err_sq = cx * cx + cy * cy;
 
   double obs = obstaclePenalty(px, py);
   double u_sq = u[0] * u[0] + u[1] * u[1];

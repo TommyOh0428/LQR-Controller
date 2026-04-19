@@ -134,20 +134,21 @@ controller_server:
       min_linear_speed: -0.05
       max_angular_speed: 2.84
       dt: 0.05
-      horizon: 20
+      horizon: 40
       n_samples: 500
-      noise_sigma_v: 0.2
+      noise_sigma_v: 0.25
       noise_sigma_omega: 0.4
-      temperature: 0.3
+      temperature: 0.8
       w_du: 0.1
       epsilon: 1.0e-9
       seed: 7
       goal_slowdown_radius: 1.0
+      lookahead_distance: 2.5
       w_path: 8.0
       w_head: 1.0
       w_goal: 2.0
       w_obs: 30.0
-      w_u: 0.01
+      w_u: 0.0
 
 local_costmap:
   local_costmap:

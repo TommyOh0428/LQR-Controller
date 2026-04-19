@@ -72,6 +72,11 @@ private:
   double epsilon_;
   int    seed_;
   double goal_slowdown_radius_;
+  double lookahead_distance_;
+
+  // Carrot target computed once per control cycle, reused across all rollout steps.
+  double carrot_x_{0.0};
+  double carrot_y_{0.0};
 
   // Cost weights
   double w_path_;

@@ -1,0 +1,10 @@
+<library path="mppi_controller">
+  <class
+    name="mppi_controller/MPPIController"
+    type="mppi_controller::MPPIController"
+    base_class_type="nav2_core::Controller">
+    <description>
+      MPPI-based Nav2 controller plugin.
+    </description>
+  </class>
+</library>

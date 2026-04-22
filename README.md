@@ -1,8 +1,31 @@
-# LQR Nav2 Controller Plugin
+<h4 align="center">
+    <br> <img src="imgs/download.png">
+</h4>
 
-A custom Nav2 controller plugin implementing an LQR (Linear Quadratic Regulator) path-tracking controller for ROS2 Humble. Built for CMPT 419 at SFU.
+<h4 align="center">
+    LQR Nav2 Controller Plugin
+</h4>
+
+<p align="center">
+    <a href="#description">Description</a> •
+    <a href="#team">Team Members</a> •
+    <a href="#how-lqr-works">LQR Algorithm</a> •
+    <a href="#architecture-overview">Architecture</a> •
+    <a href="#project-structure"> Structure </a>
+    <br>
+    <a href="#getting-started"> Setup</a> •
+    <a href="#running-the-simulation">Run Simulation</a> •
+    <a href="#benchmark">Benchmark</a> •
+    <a href="#reference">Reference</a>
+</p>
+
+## Description
+
+A custom Nav2 controller plugin implementing an LQR (Linear Quadratic Regulator) path-tracking controller for ROS2 Humble. Built for CMPT 419/720 at SFU.
 
 The controller linearizes unicycle dynamics in body-frame coordinates, solves the Discrete Algebraic Riccati Equation (DARE) for steady-state gains, and produces smooth velocity commands to track a global path from Nav2's planner.
+
+This project mainly used the Turtlebot 3 burger platform.
 
 ## Team
 
@@ -13,32 +36,112 @@ The controller linearizes unicycle dynamics in body-frame coordinates, solves th
 | Daniel Senteu | dms26@sfu.ca |
 | JunHang Wu | jwa337@sfu.ca |
 
+## How LQR Works
+
+LQR (Linear Quadratic Regulator) finds the optimal velocity correction at each timestep by minimizing a cost that balances tracking accuracy against control effort — tuned via the `Q` and `R` weights in `nav2_params.yaml`.
+
+### Body-Frame Tracking Error
+
+Rather than computing error in the global frame, we project into the path's local coordinate frame so the cost function meaningfully separates lateral (cross-track) and longitudinal deviation:
+
+$$e_{\text{long}} = \cos\theta_{\text{ref}}\,\Delta x + \sin\theta_{\text{ref}}\,\Delta y$$
+$$e_{\text{lat}} = -\sin\theta_{\text{ref}}\,\Delta x + \cos\theta_{\text{ref}}\,\Delta y$$
+$$e_{\theta} = \text{normalize}(\theta - \theta_{\text{ref}})$$
+
+### Discrete Linearization
+
+Linearizing around **e = 0** with $v_{\text{ref}} = 0.2$ m/s and $\Delta t = 0.05$ s:
+
+$$A_d = \begin{bmatrix}1 & 0 & 0\\0 & 1 & v_{\text{ref}}\Delta t\\0 & 0 & 1\end{bmatrix}, \quad B_d = \begin{bmatrix}\Delta t & 0\\0 & 0\\0 & \Delta t\end{bmatrix}$$
+
+Because $v_{\text{ref}}$ and $\omega_{\text{ref}} = 0$ are constant, $A_d$ and $B_d$ are constant — DARE is solved *once* at startup, not every control cycle.
+
+### Discrete Algebraic Ricatti Equation Solver
+
+$$P_{k+1} = Q + A_d^\top P_k A_d - A_d^\top P_k B_d\bigl(R + B_d^\top P_k B_d\bigr)^{-1} B_d^\top P_k A_d$$
+
+Converges when $\max|P_{k+1} - P_k| < 10^{-9}$, typically in under 100 iterations.
+
+### Gain Computation & Control Law
+
+$$K = \bigl(R + B_d^\top P B_d\bigr)^{-1} B_d^\top P A_d$$
+
+$$\delta\mathbf{u} = -K\mathbf{e}, \qquad v = v_{\text{ref}} + \delta u_0, \qquad \omega = \delta u_1$$
+
+Clamped to TurtleBot3 Burger limits: $v \in [0,\ 0.22]$ m/s, $\omega \in [-2.84,\ 2.84]$ rad/s.
+
+## Architecture Overview
+
+```
+Nav2 Planner (NavFn)  -->  global path
+        |
+        v
+Nav2 Controller Server  -->  loads LQRController plugin
+        |
+        v
+LQRController.computeVelocityCommands()
+   1. Find closest point on path
+   2. Advance by lookahead distance
+   3. Compute body-frame error (lqr_solver)
+   4. Apply LQR gain: delta_u = -K * error
+   5. v = v_ref + delta_v, omega = delta_omega
+   6. Clamp to TurtleBot3 limits
+        |
+        v
+/cmd_vel  -->  TurtleBot3 Burger
+```
+
 ## Project Structure
 
 ```
 LQR-Controller/
-├── .devcontainer/                   # Docker dev environment
+├── .devcontainer/                   # Dev Container Environment
 │   ├── devcontainer.json
 │   └── Dockerfile
-├── src/lqr_controller/              # ROS2 C++ package
-│   ├── include/lqr_controller/
-│   │   ├── lqr_controller.hpp       # Nav2 plugin class
-│   │   └── lqr_solver.hpp           # LQR math (pure Eigen, no ROS)
-│   ├── src/
-│   │   ├── lqr_controller.cpp       # Nav2 plugin implementation
-│   │   └── lqr_solver.cpp           # DARE solver, linearization, error
-│   ├── CMakeLists.txt
-│   ├── package.xml
-│   └── lqr_controller_plugin.xml
-├── config/
-│   ├── nav2_params.yaml             # Nav2 config (LQR controller)
-│   └── dwb_params.yaml              # Nav2 config (DWB baseline)
+├── .github/workflows                # GitHub Action Workflows to deploy website
+│   └── deploy-pages.yml             
+├── config/                          # Nav2 config folder 
+│   ├── dwb_navfn_params.yaml
+│   ├── dwb_smac_params.yaml
+│   ├── lqr_navfn_params.yaml
+│   ├── lqr_smac_params.yaml
+│   ├── mppi_smac_params.yaml             
+│   └── mppi_smac.yaml              
+├── imgs/                            # Folder for images
+├── output/                          # Folder that saves the output
+├── recording/                       # Folder that rosbag recording
 ├── scripts/
-│   └── benchmark_analysis.py        # Rosbag metrics analysis
-├── docs/                            # Timestamped implementation notes
-├── AGENTS.md                        # Full implementation spec
-├── proposal.md                      # Course project proposal
-└── README.md
+│   ├── benchmark_analysis.py        # Rosbag metrics analysis
+│   ├── fake_robot_node.py           # Fake robot node for headless testing environment
+│   └── run_benchmarks.py            # Automated testing for rosbag runs
+├── src/
+│   ├──lqr_controller/               # ROS2 LQR C++ packages
+│   │   ├── include/lqr_controller/
+│   │   │   ├── lqr_controller.hpp   
+│   │   │   └── lqr_solver.hpp       
+│   │   ├── src/
+│   │   │   ├── lqr_controller.cpp   
+│   │   │   └── lqr_solver.cpp       
+│   │   ├── CMakeLists.txt
+│   │   ├── package.xml
+│   │   └── lqr_controller_plugin.xml
+│   ├──mppi_controller/              # ROS2 MPPI C++ package
+│   │   ├── include/mppi_controller/
+│   │   │   ├── lqr_controller.hpp   
+│   │   │   └── lqr_solver.hpp       
+│   │   ├── src/
+│   │   │   ├── lqr_controller.cpp   
+│   │   │   └── lqr_solver.cpp       
+│   │   ├── CMakeLists.txt
+│   │   ├── package.xml
+│   │   └── lqr_controller_plugin.xml  
+├── website/
+│   ├── assets/                      # Asset folder
+│   └── index.html                   # Our project website 
+├── proposal.md                      # Project proposal
+├── README.md                        # Project Description
+├── ros_entrypoint.sh 
+└── .gitignore                       
 ```
 
 ## Getting Started
@@ -48,6 +151,12 @@ LQR-Controller/
 - Docker + VS Code with Dev Containers extension
 - **Windows:** WSL2 (for GUI / Gazebo display)
 - **macOS:** XQuartz (for GUI / Gazebo display) — see [macOS Setup](#macos-setup) below
+
+> [!WARNING]
+> We do not recommend to setup this project in MacOSX because some of the packages are deprecated in ARM architecture. If you need to use MacOSX, we recommend you to use headless mode. 
+
+> [!TIP]
+> We recommend you to use AMD64 architecture and use Dev Container.
 
 ### 1. Open in Dev Container
 
@@ -220,9 +329,6 @@ ros2 topic pub --once /goal_pose geometry_msgs/PoseStamped "{
 ```
 After reaching the goal or done recording, `ctrl + c` to stop the recording (on the terminal that started the recording).
 
-After recording both, run analysis on the two recordings:
-### Analyze
-
 The benchmark can be run through the python script headless (meaning no frontend, only backend).
 Run this python script to benchmark with each algorithm:
 ```bash
@@ -231,37 +337,17 @@ Run this python script to benchmark with each algorithm:
 source install/setup.bash
 python3 scripts/run_benchmarks.py --runs 3 --timeout 360
 ```
-After running this, run this python script to analyze the benchmark:
+
+### Analyze
+
+After running the benchmark, run this python script to analyze the benchmark:
 
 ```bash
 python3 scripts/benchmark_analysis.py --bag recordings/lqr_run_1 --bag recordings/dwb_run_1
 ```
 Outputs are saved in `output/run_<run_count>`
 
-Metrics: cross-track error, smoothness, time-to-goal, success rate.
-
-## Architecture Overview
-
-```
-Nav2 Planner (NavFn)  -->  global path
-        |
-        v
-Nav2 Controller Server  -->  loads LQRController plugin
-        |
-        v
-LQRController.computeVelocityCommands()
-   1. Find closest point on path
-   2. Advance by lookahead distance
-   3. Compute body-frame error (lqr_solver)
-   4. Apply LQR gain: delta_u = -K * error
-   5. v = v_ref + delta_v, omega = delta_omega
-   6. Clamp to TurtleBot3 limits
-        |
-        v
-/cmd_vel  -->  TurtleBot3 Burger
-```
-
-Full architecture diagram and algorithm details in `AGENTS.md`.
+- Metrics: cross-track error, smoothness, time-to-goal, success rate.
 
 ## References
 

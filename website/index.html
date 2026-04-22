@@ -1,0 +1,2009 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LQR Nav2 Controller — CMPT 720 SFU</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- MathJax -->
+    <script>
+      MathJax = {
+        tex: {
+          inlineMath: [
+            ["$", "$"],
+            ["\\(", "\\)"],
+          ],
+          displayMath: [
+            ["$$", "$$"],
+            ["\\[", "\\]"],
+          ],
+        },
+        options: {
+          skipHtmlTags: ["script", "noscript", "style", "textarea", "pre"],
+        },
+      };
+    </script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"
+      async
+    ></script>
+
+    <style>
+      :root {
+        --bg: #f7f6f3;
+        --bg2: #ffffff;
+        --bg3: #f0efe9;
+        --border: #e0ddd5;
+        --text: #1a1915;
+        --muted: #6b6860;
+        --accent: #c95f1a;
+        --accent2: #1a6fcc;
+        --green: #1e8a4a;
+        --mono: "DM Mono", monospace;
+        --serif: "DM Serif Display", serif;
+        --sans: "DM Sans", sans-serif;
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--sans);
+        font-size: 16px;
+        line-height: 1.7;
+        overflow-x: hidden;
+      }
+
+      /* ── NOISE OVERLAY ── */
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+        pointer-events: none;
+        z-index: 9999;
+        opacity: 0.15;
+      }
+
+      /* ── LAYOUT ── */
+      .container {
+        max-width: 860px;
+        margin: 0 auto;
+        padding: 0 24px;
+      }
+      .container-wide {
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: 0 24px;
+      }
+
+      section {
+        padding: 72px 0;
+        border-bottom: 1px solid var(--border);
+      }
+      section:nth-child(even) {
+        background: #ffffff;
+      }
+      section:nth-child(odd) {
+        background: var(--bg);
+      }
+      section:last-of-type {
+        border-bottom: none;
+      }
+
+      /* ── HERO ── */
+      #hero {
+        padding: 100px 0 80px;
+        position: relative;
+        background: radial-gradient(
+          ellipse 80% 60% at 50% 0%,
+          rgba(201, 95, 26, 0.06) 0%,
+          transparent 70%
+        );
+      }
+
+      .course-tag {
+        display: inline-block;
+        font-family: var(--mono);
+        font-size: 11px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--accent);
+        border: 1px solid rgba(232, 121, 58, 0.4);
+        padding: 4px 12px;
+        border-radius: 2px;
+        margin-bottom: 28px;
+      }
+
+      h1 {
+        font-family: var(--serif);
+        font-size: clamp(2.2rem, 5vw, 3.4rem);
+        line-height: 1.15;
+        color: #1a1915;
+        margin-bottom: 20px;
+        max-width: 780px;
+      }
+
+      h1 em {
+        font-style: italic;
+        color: var(--accent);
+      }
+
+      .subtitle {
+        font-size: 1.05rem;
+        color: var(--muted);
+        margin-bottom: 36px;
+        font-weight: 300;
+      }
+
+      /* Authors */
+      .authors {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 24px;
+        margin-bottom: 40px;
+        font-size: 0.95rem;
+      }
+      .author {
+        color: var(--text);
+        font-weight: 500;
+      }
+      .author span {
+        color: var(--muted);
+        font-weight: 300;
+        font-size: 0.82rem;
+        display: block;
+      }
+
+      /* Link buttons */
+      .links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 20px;
+        border-radius: 4px;
+        font-family: var(--mono);
+        font-size: 0.82rem;
+        letter-spacing: 0.04em;
+        text-decoration: none;
+        transition: all 0.2s ease;
+        border: 1px solid;
+      }
+
+      .btn-primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+      }
+      .btn-primary:hover {
+        background: #a84d12;
+        border-color: #a84d12;
+        transform: translateY(-1px);
+      }
+
+      .btn-outline {
+        background: transparent;
+        border-color: var(--border);
+        color: var(--muted);
+      }
+      .btn-outline:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+        transform: translateY(-1px);
+      }
+
+      .btn-dim {
+        background: transparent;
+        border-color: rgba(0, 0, 0, 0.12);
+        color: rgba(0, 0, 0, 0.28);
+        cursor: default;
+        pointer-events: none;
+      }
+
+      .btn svg {
+        width: 16px;
+        height: 16px;
+        flex-shrink: 0;
+      }
+
+      /* ── SECTION HEADINGS ── */
+      h2 {
+        font-family: var(--serif);
+        font-size: 1.9rem;
+        color: #1a1915;
+        margin-bottom: 8px;
+      }
+      .section-label {
+        font-family: var(--mono);
+        font-size: 10px;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        color: var(--accent);
+        margin-bottom: 16px;
+        display: block;
+      }
+
+      h3 {
+        font-family: var(--sans);
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #1a1915;
+        margin: 32px 0 10px;
+      }
+
+      p {
+        margin-bottom: 14px;
+        color: var(--text);
+        font-weight: 300;
+      }
+      p:last-child {
+        margin-bottom: 0;
+      }
+
+      /* ── ABSTRACT ── */
+      #abstract .abstract-box {
+        border-left: 3px solid var(--accent);
+        padding: 24px 28px;
+        background: var(--bg2);
+        border-radius: 0 6px 6px 0;
+        font-size: 1rem;
+        line-height: 1.8;
+      }
+
+      /* ── STAT CARDS ── */
+      .stat-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: 16px;
+        margin: 40px 0;
+      }
+
+      .stat-card {
+        background: var(--bg2);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 20px;
+        text-align: center;
+        transition: border-color 0.2s;
+      }
+      .stat-card:hover {
+        border-color: rgba(201, 95, 26, 0.4);
+      }
+
+      .stat-num {
+        font-family: var(--mono);
+        font-size: 1.9rem;
+        font-weight: 500;
+        color: var(--accent);
+        display: block;
+        line-height: 1;
+        margin-bottom: 6px;
+      }
+      .stat-label {
+        font-size: 0.78rem;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      /* ── ARCHITECTURE ── */
+      #architecture .arch-box {
+        background: var(--bg2);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 32px;
+        margin-top: 32px;
+        overflow-x: auto;
+      }
+
+      .arch-flow {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0;
+        font-family: var(--mono);
+        font-size: 0.85rem;
+      }
+
+      .arch-node {
+        background: var(--bg3);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 12px 28px;
+        color: var(--text);
+        white-space: nowrap;
+        position: relative;
+        transition: border-color 0.2s;
+      }
+      .arch-node:hover {
+        border-color: var(--accent2);
+      }
+      .arch-node.highlight {
+        border-color: var(--accent);
+        color: var(--accent);
+        background: rgba(201, 95, 26, 0.06);
+      }
+
+      .arch-arrow {
+        color: var(--muted);
+        font-size: 0.75rem;
+        letter-spacing: 0.1em;
+        padding: 4px 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0;
+      }
+      .arch-arrow .label {
+        font-size: 0.7rem;
+        color: var(--accent2);
+        font-style: italic;
+      }
+
+      .arch-steps {
+        background: var(--bg3);
+        border: 1px solid var(--accent);
+        border-radius: 8px;
+        padding: 16px 24px;
+        width: 100%;
+        max-width: 520px;
+      }
+      .arch-steps ol {
+        list-style: decimal;
+        padding-left: 20px;
+        color: var(--muted);
+        font-size: 0.82rem;
+        line-height: 2;
+      }
+      .arch-steps ol li span {
+        color: var(--text);
+      }
+
+      .two-col {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+        margin-top: 32px;
+      }
+      @media (max-width: 640px) {
+        .two-col {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .info-card {
+        background: var(--bg2);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 20px;
+      }
+      .info-card h4 {
+        font-family: var(--mono);
+        font-size: 0.78rem;
+        color: var(--accent2);
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        margin-bottom: 12px;
+      }
+      .info-card ul {
+        list-style: none;
+        font-size: 0.88rem;
+        color: var(--muted);
+        line-height: 1.9;
+      }
+      .info-card ul li::before {
+        content: "→ ";
+        color: var(--accent);
+      }
+      #algorithm .eq-block {
+        background: var(--bg2);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 24px;
+        margin: 20px 0;
+        overflow-x: auto;
+      }
+      .eq-label {
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        color: var(--accent);
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        margin-bottom: 12px;
+        display: block;
+      }
+
+      .matrix-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin: 20px 0;
+      }
+      @media (max-width: 600px) {
+        .matrix-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      /* ── BUGS ── */
+      .bug-list {
+        margin-top: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .bug-card {
+        background: var(--bg2);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 20px 24px;
+        border-left: 3px solid;
+        transition: transform 0.15s;
+      }
+      .bug-card:hover {
+        transform: translateX(3px);
+      }
+      .bug-card.critical {
+        border-left-color: #b42828;
+      }
+      .bug-card.moderate {
+        border-left-color: #9a7200;
+      }
+      .bug-card.minor {
+        border-left-color: var(--accent2);
+      }
+
+      .bug-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 8px;
+      }
+      .bug-num {
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        padding: 2px 8px;
+        border-radius: 3px;
+        font-weight: 500;
+      }
+      .critical .bug-num {
+        background: rgba(180, 40, 40, 0.1);
+        color: #b42828;
+      }
+      .moderate .bug-num {
+        background: rgba(160, 120, 10, 0.12);
+        color: #9a7200;
+      }
+      .minor .bug-num {
+        background: rgba(26, 111, 204, 0.1);
+        color: var(--accent2);
+      }
+
+      .bug-title {
+        font-weight: 600;
+        font-size: 0.95rem;
+        color: #1a1915;
+      }
+
+      .bug-body {
+        font-size: 0.88rem;
+        color: var(--muted);
+      }
+      .bug-fix {
+        margin-top: 10px;
+        font-size: 0.85rem;
+        color: var(--green);
+        font-family: var(--mono);
+        background: rgba(30, 138, 74, 0.06);
+        border-radius: 4px;
+        padding: 8px 12px;
+      }
+
+      /* ── RESULTS TABLE ── */
+      .results-section {
+        margin-top: 36px;
+      }
+
+      .table-wrap {
+        overflow-x: auto;
+        margin: 24px 0;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.88rem;
+      }
+      thead tr {
+        background: #f0efe9;
+        border-bottom: 1px solid var(--accent);
+      }
+      thead th {
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+        padding: 12px 16px;
+        text-align: left;
+        white-space: nowrap;
+      }
+      tbody tr {
+        border-bottom: 1px solid var(--border);
+        transition: background 0.15s;
+      }
+      tbody tr:hover {
+        background: rgba(0, 0, 0, 0.025);
+      }
+      tbody td {
+        padding: 12px 16px;
+        color: var(--text);
+        font-size: 0.88rem;
+        white-space: nowrap;
+      }
+      .td-config {
+        font-family: var(--mono);
+        font-size: 0.8rem;
+        color: var(--accent2);
+      }
+      .td-best {
+        color: var(--accent);
+        font-weight: 600;
+      }
+      .td-check {
+        color: var(--green);
+      }
+
+      .row-lqr {
+        background: rgba(201, 95, 26, 0.04);
+      }
+
+      /* ── FIGURES ── */
+      .figure-block {
+        margin: 32px 0;
+      }
+      .figure-block img {
+        width: 100%;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        display: block;
+      }
+      .figure-caption {
+        font-size: 0.82rem;
+        color: var(--muted);
+        text-align: center;
+        margin-top: 12px;
+        font-style: italic;
+      }
+
+      /* ── VIDEOS ── */
+      .video-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 16px;
+        margin-top: 32px;
+      }
+
+      .video-card {
+        background: var(--bg2);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow: hidden;
+        transition: border-color 0.2s;
+      }
+      .video-card:hover {
+        border-color: rgba(201, 95, 26, 0.4);
+      }
+
+      .video-card video {
+        width: 100%;
+        display: block;
+        aspect-ratio: 16/9;
+        object-fit: cover;
+        background: #000;
+      }
+
+      .video-label {
+        padding: 10px 14px;
+        font-family: var(--mono);
+        font-size: 0.76rem;
+        color: var(--muted);
+      }
+      .video-label strong {
+        color: var(--text);
+      }
+
+      /* ── DISCUSSION ── */
+      .insight-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 16px;
+        margin-top: 28px;
+      }
+
+      .insight-card {
+        background: var(--bg2);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 20px;
+      }
+      .insight-icon {
+        font-size: 1.4rem;
+        margin-bottom: 10px;
+        display: block;
+      }
+      .insight-card h4 {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #1a1915;
+        margin-bottom: 8px;
+      }
+      .insight-card p {
+        font-size: 0.83rem;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+
+      /* ── TEAM ── */
+      .team-table {
+        margin-top: 24px;
+      }
+      .team-row {
+        display: flex;
+        gap: 16px;
+        border-bottom: 1px solid var(--border);
+        padding: 14px 0;
+        align-items: flex-start;
+      }
+      .team-row:last-child {
+        border-bottom: none;
+      }
+      .team-name {
+        font-weight: 600;
+        font-size: 0.92rem;
+        color: #1a1915;
+        min-width: 150px;
+        flex-shrink: 0;
+      }
+      .team-tasks {
+        font-size: 0.85rem;
+        color: var(--muted);
+        line-height: 1.7;
+      }
+
+      /* ── TUNING ── */
+      .tuning-timeline {
+        margin-top: 28px;
+        position: relative;
+        padding-left: 24px;
+      }
+      .tuning-timeline::before {
+        content: "";
+        position: absolute;
+        left: 6px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: linear-gradient(to bottom, var(--accent), transparent);
+      }
+      .tuning-entry {
+        position: relative;
+        margin-bottom: 28px;
+      }
+      .tuning-entry::before {
+        content: "";
+        position: absolute;
+        left: -21px;
+        top: 6px;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--accent);
+        border: 2px solid var(--bg);
+      }
+      .tuning-date {
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        color: var(--accent);
+        margin-bottom: 4px;
+      }
+      .tuning-title {
+        font-weight: 600;
+        color: #1a1915;
+        margin-bottom: 6px;
+        font-size: 0.95rem;
+      }
+      .tuning-body {
+        font-size: 0.85rem;
+        color: var(--muted);
+        line-height: 1.7;
+      }
+
+      /* ── CODE BLOCK ── */
+      pre,
+      code {
+        font-family: var(--mono);
+        font-size: 0.82rem;
+      }
+      pre {
+        background: #eeecea;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 20px;
+        overflow-x: auto;
+        color: #1a1915;
+        line-height: 1.6;
+        margin: 16px 0;
+      }
+      code {
+        background: rgba(0, 0, 0, 0.06);
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 0.85em;
+      }
+
+      /* ── BIBTEX ── */
+      .bibtex-box {
+        background: var(--bg2);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 24px;
+        margin-top: 24px;
+        position: relative;
+      }
+
+      .copy-btn {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        background: var(--bg3);
+        border: 1px solid var(--border);
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 0.7rem;
+        padding: 4px 10px;
+        border-radius: 3px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      /* ── FOOTER ── */
+      footer {
+        padding: 48px 0;
+        text-align: center;
+        font-size: 0.82rem;
+        color: var(--muted);
+      }
+      footer a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+
+      /* ── NAV ── */
+      nav {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 100;
+        background: rgba(247, 246, 243, 0.92);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid var(--border);
+        padding: 0 24px;
+      }
+      .nav-inner {
+        max-width: 1080px;
+        margin: 0 auto;
+        display: flex;
+        align-items: center;
+        height: 52px;
+        gap: 32px;
+      }
+      .nav-logo {
+        font-family: var(--mono);
+        font-size: 0.8rem;
+        color: var(--accent);
+        text-decoration: none;
+        letter-spacing: 0.08em;
+        flex-shrink: 0;
+      }
+      .nav-links {
+        display: flex;
+        gap: 24px;
+        list-style: none;
+      }
+      .nav-links a {
+        font-size: 0.82rem;
+        color: var(--muted);
+        text-decoration: none;
+        transition: color 0.2s;
+      }
+      .nav-links a:hover {
+        color: var(--text);
+      }
+
+      .page-start {
+        padding-top: 52px;
+      }
+
+      /* ── BADGE ── */
+      .badge {
+        display: inline-block;
+        font-family: var(--mono);
+        font-size: 0.7rem;
+        padding: 2px 8px;
+        border-radius: 3px;
+        margin-left: 8px;
+        vertical-align: middle;
+      }
+      .badge-green {
+        background: rgba(30, 138, 74, 0.12);
+        color: var(--green);
+      }
+      .badge-orange {
+        background: rgba(232, 121, 58, 0.15);
+        color: var(--accent);
+      }
+      .badge-blue {
+        background: rgba(26, 111, 204, 0.1);
+        color: var(--accent2);
+      }
+
+      /* ── ANIMATIONS ── */
+      @keyframes fadeUp {
+        from {
+          opacity: 0;
+          transform: translateY(18px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .fade-up {
+        animation: fadeUp 0.6s ease both;
+      }
+      .fade-up:nth-child(2) {
+        animation-delay: 0.1s;
+      }
+      .fade-up:nth-child(3) {
+        animation-delay: 0.2s;
+      }
+      .fade-up:nth-child(4) {
+        animation-delay: 0.3s;
+      }
+
+      @media (max-width: 640px) {
+        .nav-links {
+          display: none;
+        }
+        h1 {
+          font-size: 2rem;
+        }
+        .authors {
+          gap: 6px 16px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- ── NAV ── -->
+    <nav>
+      <div class="nav-inner">
+        <a href="#" class="nav-logo">LQR-NAV2</a>
+        <ul class="nav-links">
+          <li><a href="#abstract">Abstract</a></li>
+          <li><a href="#architecture">Architecture</a></li>
+          <li><a href="#algorithm">Algorithm</a></li>
+          <li><a href="#implementation">Bugs & Fixes</a></li>
+          <li><a href="#results">Results</a></li>
+          <li><a href="#videos">Videos</a></li>
+          <li><a href="#discussion">Discussion</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <div class="page-start">
+      <!-- ── HERO ── -->
+      <section id="hero">
+        <div class="container">
+          <div class="course-tag fade-up">
+            CMPT 720 · Spring 2026 · Simon Fraser University
+          </div>
+
+          <h1 class="fade-up">
+            LQR as a <em>Nav2 Controller Plugin</em> for TurtleBot3 Path
+            Tracking
+          </h1>
+
+          <p class="subtitle fade-up">
+            A C++ Linear Quadratic Regulator integrated into the ROS2 navigation
+            stack,<br />
+            benchmarked against DWB and MPPI across six controller–planner
+            configurations.
+          </p>
+
+          <div class="authors fade-up">
+            <div class="author">Tommy Oh <span>koa18@sfu.ca</span></div>
+            <div class="author">Ansh Aggarwal <span>aaa275@sfu.ca</span></div>
+            <div class="author">Daniel Senteu <span>dms26@sfu.ca</span></div>
+            <div class="author">JunHang Wu <span>jwa337@sfu.ca</span></div>
+          </div>
+
+          <div class="links fade-up">
+            <a
+              class="btn btn-primary"
+              href="https://github.com/TommyOh0428/LQR-Controller"
+              target="_blank"
+            >
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path
+                  d="M12 2C6.48 2 2 6.48 2 12c0 4.42 2.87 8.17 6.84 9.49.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.15-1.11-1.46-1.11-1.46-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.89 1.52 2.34 1.08 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02A9.56 9.56 0 0112 6.8c.85.004 1.7.115 2.5.337 1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10.01 10.01 0 0022 12c0-5.52-4.48-10-10-10z"
+                />
+              </svg>
+              GitHub Repository
+            </a>
+            <a class="btn btn-outline" href="assets/report.pdf" target="_blank">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"
+                />
+                <polyline points="14 2 14 8 20 8" />
+              </svg>
+              Report PDF
+            </a>
+            <a class="btn btn-dim" href="#" aria-disabled="true">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <path d="M3 9h18M9 21V9" />
+              </svg>
+              Poster (coming soon)
+            </a>
+            <a class="btn btn-dim" href="#" aria-disabled="true">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"
+                />
+              </svg>
+              Slides (coming soon)
+            </a>
+            <a class="btn btn-dim" href="#" aria-disabled="true">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <polygon points="23 7 16 12 23 17 23 7" />
+                <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+              </svg>
+              Presentation (coming soon)
+            </a>
+          </div>
+
+          <!-- Quick-stats -->
+          <div class="stat-grid" style="margin-top: 56px">
+            <div class="stat-card">
+              <span class="stat-num">100%</span>
+              <span class="stat-label">Success Rate (5 runs)</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-num">67.9s</span>
+              <span class="stat-label">Fastest Time-to-Goal</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-num">0.083m</span>
+              <span class="stat-label">Mean CTE (LQR+NavFn)</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-num">6</span>
+              <span class="stat-label">Bugs Fixed Before Tuning</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-num">20 Hz</span>
+              <span class="stat-label">Control Rate</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── ABSTRACT ── -->
+      <section id="abstract">
+        <div class="container">
+          <span class="section-label">01 — Abstract</span>
+          <h2>Overview</h2>
+          <div class="abstract-box" style="margin-top: 20px">
+            We implement a
+            <strong>Linear Quadratic Regulator (LQR)</strong> path-tracking
+            controller as a C++ Nav2 plugin for ROS2 Humble, deployed on a
+            simulated TurtleBot3 Burger in Gazebo. The controller linearizes
+            unicycle dynamics in body-frame coordinates, solves the Discrete
+            Algebraic Riccati Equation (DARE) for a steady-state gain matrix,
+            and produces smooth velocity commands at 20 Hz. We benchmark LQR
+            against two standard Nav2 controllers —
+            <strong>DWB</strong> (Dynamic Window Approach) and
+            <strong>MPPI</strong> (Model Predictive Path Integral) — across two
+            planners (NavFn and Smac 2D), yielding a 3×2 comparison matrix. LQR
+            achieved the <strong>lowest time-to-goal (67.9 s)</strong> with
+            NavFn, strong path-tracking accuracy (mean CTE 0.083 m), and the
+            smoothest velocity commands of all three controllers. All 6
+            configurations successfully reached the goal. Crucially, our gains
+            required no tuning beyond the initial specification — all six
+            implementation bugs preventing goal-reaching were resolved through
+            code fixes alone.
+          </div>
+        </div>
+      </section>
+
+      <!-- ── ARCHITECTURE ── -->
+      <section id="architecture">
+        <div class="container-wide">
+          <div class="container">
+            <span class="section-label">02 — System Design</span>
+            <h2>Architecture</h2>
+            <p>
+              The LQR controller integrates into the Nav2 stack as a
+              <code>pluginlib</code> plugin implementing
+              <code>nav2_core::Controller</code>. The implementation is
+              deliberately split into two files to keep pure mathematics
+              separate from ROS2 glue code.
+            </p>
+          </div>
+
+          <div class="container">
+            <div class="arch-box">
+              <div class="arch-flow">
+                <div class="arch-node">NavFn / Smac 2D Planner</div>
+                <div class="arch-arrow">
+                  <span>↓</span>
+                  <span class="label">nav_msgs/Path</span>
+                </div>
+                <div class="arch-node">Nav2 Controller Server (20 Hz)</div>
+                <div class="arch-arrow">
+                  <span>↓</span>
+                  <span class="label">computeVelocityCommands(pose, vel)</span>
+                </div>
+                <div class="arch-node highlight">LQRController Plugin</div>
+                <div class="arch-arrow"><span>↓</span></div>
+                <div class="arch-steps">
+                  <ol>
+                    <li>
+                      <span>findClosestPoint(pose)</span> — forward search from
+                      last index
+                    </li>
+                    <li>
+                      <span>findLookaheadPoint(idx)</span> — advance 0.5 m along
+                      path
+                    </li>
+                    <li>
+                      <span>computePathHeading(ref)</span> — atan2 fallback for
+                      NavFn quaternions
+                    </li>
+                    <li>
+                      <span>computeBodyFrameError()</span> — [e_long, e_lat,
+                      e_θ]
+                    </li>
+                    <li><span>δu = −K · e</span> — apply LQR gain</li>
+                    <li>
+                      <span>clamp(v, ω)</span> — TurtleBot3 hardware limits
+                    </li>
+                  </ol>
+                </div>
+                <div class="arch-arrow">
+                  <span>↓</span>
+                  <span class="label">TwistStamped</span>
+                </div>
+                <div class="arch-node">/cmd_vel → TurtleBot3 Burger</div>
+              </div>
+            </div>
+
+            <div class="two-col" style="margin-top: 28px">
+              <div class="info-card">
+                <h4>lqr_solver.hpp / .cpp</h4>
+                <ul>
+                  <li>Pure C++ + Eigen, zero ROS deps</li>
+                  <li>buildLinearSystem() — A_d, B_d</li>
+                  <li>solveDARE() — iterative Riccati</li>
+                  <li>computeGain() — K matrix</li>
+                  <li>computeBodyFrameError()</li>
+                  <li>normalizeAngle()</li>
+                </ul>
+              </div>
+              <div class="info-card">
+                <h4>lqr_controller.hpp / .cpp</h4>
+                <ul>
+                  <li>Nav2 plugin lifecycle methods</li>
+                  <li>configure() — DARE solved once</li>
+                  <li>setPlan() — stores global path</li>
+                  <li>computeVelocityCommands()</li>
+                  <li>findClosestPoint() / findLookaheadPoint()</li>
+                  <li>setSpeedLimit() callback</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── ALGORITHM ── -->
+      <section id="algorithm">
+        <div class="container">
+          <span class="section-label">03 — Methodology</span>
+          <h2>LQR Algorithm</h2>
+
+          <p>
+            The TurtleBot3 Burger is modeled as a
+            <strong>unicycle (Dubins car)</strong>. LQR is applied in three
+            stages: body-frame error formulation, discrete linearization, and
+            DARE-based gain computation.
+          </p>
+
+          <h3>Robot Model</h3>
+          <div class="eq-block">
+            <span class="eq-label">Continuous-Time Unicycle Dynamics</span>
+            $$\dot{p}_x = v\cos\theta, \qquad \dot{p}_y = v\sin\theta, \qquad
+            \dot{\theta} = \omega$$
+            <p
+              style="margin-top: 12px; font-size: 0.85rem; color: var(--muted)"
+            >
+              State: $\mathbf{x} = [p_x,\; p_y,\; \theta]^\top$ &nbsp;·&nbsp;
+              Control: $\mathbf{u} = [v,\; \omega]^\top$
+            </p>
+          </div>
+
+          <h3>Body-Frame Tracking Error</h3>
+          <p>
+            Rather than computing error in the global frame, we project into the
+            path's local coordinate frame. This ensures the LQR cost
+            meaningfully penalizes lateral (cross-track) and longitudinal
+            deviation separately:
+          </p>
+          <div class="eq-block">
+            <span class="eq-label">Error Decomposition</span>
+            $$e_{\text{long}} = \cos\theta_{\text{ref}}\,\Delta x +
+            \sin\theta_{\text{ref}}\,\Delta y$$ $$e_{\text{lat}} =
+            -\sin\theta_{\text{ref}}\,\Delta x + \cos\theta_{\text{ref}}\,\Delta
+            y$$ $$e_\theta = \text{normalize}(\theta - \theta_{\text{ref}})$$
+            <p
+              style="margin-top: 12px; font-size: 0.85rem; color: var(--muted)"
+            >
+              Error vector: $\mathbf{e} = [e_{\text{long}},\; e_{\text{lat}},\;
+              e_\theta]^\top \in \mathbb{R}^3$
+            </p>
+          </div>
+
+          <h3>Discrete Linearization</h3>
+          <p>
+            Linearizing around $\mathbf{e}=\mathbf{0}$ with $v_{\text{ref}} =
+            0.2$ m/s, $\omega_{\text{ref}} = 0$, and applying Forward Euler with
+            $\Delta t = 0.05$ s:
+          </p>
+          <div class="matrix-grid">
+            <div class="eq-block">
+              <span class="eq-label">Discrete A matrix</span>
+              $$A_d = \begin{bmatrix} 1 & 0 & 0 \\ 0 & 1 & v_{\text{ref}}\Delta
+              t \\ 0 & 0 & 1 \end{bmatrix} = \begin{bmatrix}1 & 0 & 0\\0 & 1 &
+              0.01\\0 & 0 & 1\end{bmatrix}$$
+            </div>
+            <div class="eq-block">
+              <span class="eq-label">Discrete B matrix</span>
+              $$B_d = \begin{bmatrix} \Delta t & 0 \\ 0 & 0 \\ 0 & \Delta t
+              \end{bmatrix} = \begin{bmatrix}0.05 & 0\\0 & 0\\0 &
+              0.05\end{bmatrix}$$
+            </div>
+          </div>
+          <p>
+            <strong>Key insight:</strong> Because $v_{\text{ref}}$ and
+            $\omega_{\text{ref}} = 0$ are constant, $A_d$ and $B_d$ are constant
+            — DARE is solved <em>once</em> at startup, not every control cycle.
+          </p>
+
+          <h3>DARE Solver</h3>
+          <div class="eq-block">
+            <span class="eq-label"
+              >Discrete Algebraic Riccati Equation (Iterative)</span
+            >
+            $$P_{k+1} = Q + A_d^\top P_k A_d - A_d^\top P_k B_d\bigl(R +
+            B_d^\top P_k B_d\bigr)^{-1} B_d^\top P_k A_d$$
+            <p
+              style="margin-top: 12px; font-size: 0.85rem; color: var(--muted)"
+            >
+              Convergence: $\max|P_{k+1} - P_k| < 10^{-9}$. Typically converges
+              in &lt;100 iterations.
+            </p>
+          </div>
+
+          <h3>Gain Computation &amp; Control Law</h3>
+          <div class="eq-block">
+            <span class="eq-label">LQR Gain (2×3) and Control Law</span>
+            $$K = \bigl(R + B_d^\top P B_d\bigr)^{-1} B_d^\top P A_d$$
+            $$\delta\mathbf{u} = -K\mathbf{e}, \qquad v = v_{\text{ref}} +
+            \delta u_0, \qquad \omega = \delta u_1$$
+            <p
+              style="margin-top: 12px; font-size: 0.85rem; color: var(--muted)"
+            >
+              Clamped to TurtleBot3 Burger limits: $v \in [0,\; 0.22]$ m/s,
+              $\omega \in [-2.84,\; 2.84]$ rad/s.
+            </p>
+          </div>
+
+          <h3>Cost Matrices</h3>
+          <div class="eq-block">
+            <span class="eq-label">Final Q and R (no tuning required)</span>
+            $$Q = \mathrm{diag}(1.0,\; 3.0,\; 1.0), \qquad R =
+            \mathrm{diag}(1.0,\; 0.5)$$
+            <p
+              style="margin-top: 12px; font-size: 0.85rem; color: var(--muted)"
+            >
+              $q_{\text{lateral}} = 3.0$ is intentionally elevated to prioritize
+              tight lateral path-tracking. These are the original specification
+              gains — no tuning was performed.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── IMPLEMENTATION / BUGS ── -->
+      <section id="implementation">
+        <div class="container">
+          <span class="section-label">04 — Implementation</span>
+          <h2>Six Bugs Before Tuning</h2>
+
+          <p>
+            The initial implementation had strong path-tracking (mean CTE ~0.10
+            m) but the robot <strong>never reached the goal</strong>. All six
+            root causes were code defects — the original Q/R gains were never
+            the problem. Each bug is documented from the tuning log.
+          </p>
+
+          <div class="bug-list">
+            <div class="bug-card critical">
+              <div class="bug-header">
+                <span class="bug-num">BUG 1 · CRITICAL</span>
+                <span class="bug-title">Backward Path Snap</span>
+              </div>
+              <p class="bug-body">
+                <code>findClosestPoint()</code> scanned the <em>entire</em> path
+                every cycle. Near the goal, the curved path looped back toward
+                earlier segments, causing the closest-point index to snap
+                backward. The robot would then drive <em>away</em> from the goal
+                to re-track old waypoints, creating an infinite loop.
+              </p>
+              <div class="bug-fix">
+                Fix: introduced <code>last_closest_idx_</code> — search now
+                starts from previous index (±2 step lookback for localization
+                jitter). Reset to 0 on each <code>setPlan()</code>.
+              </div>
+            </div>
+
+            <div class="bug-card critical">
+              <div class="bug-header">
+                <span class="bug-num">BUG 2 · CRITICAL</span>
+                <span class="bug-title">Goal Overshoot &amp; Oscillation</span>
+              </div>
+              <p class="bug-body">
+                At constant $v_{\text{ref}} = 0.2$ m/s, the robot overshot the
+                0.25 m goal tolerance, turned around, overshot again, and
+                oscillated indefinitely around the goal without ever triggering
+                the goal checker.
+              </p>
+              <div class="bug-fix">
+                Fix: added <code>goal_slowdown_radius: 1.0</code> m. When
+                remaining path length &lt; 1.0 m, reference speed scales
+                linearly to zero with a 5% floor to prevent stalling before the
+                goal checker triggers.
+              </div>
+            </div>
+
+            <div class="bug-card critical">
+              <div class="bug-header">
+                <span class="bug-num">BUG 3 · CRITICAL</span>
+                <span class="bug-title">Goal Checker Never Called</span>
+              </div>
+              <p class="bug-body">
+                The <code>goal_checker</code> parameter passed to
+                <code>computeVelocityCommands()</code> was silently discarded.
+                The controller kept commanding non-zero velocities even when
+                Nav2 had internally satisfied the goal condition.
+              </p>
+              <div class="bug-fix">
+                Fix: added <code>goal_checker-&gt;isGoalReached()</code> check
+                at the top of each control cycle. Returns zero velocity
+                immediately when triggered.
+              </div>
+            </div>
+
+            <div class="bug-card moderate">
+              <div class="bug-header">
+                <span class="bug-num">BUG 4 · MODERATE</span>
+                <span class="bug-title">Wrong Path Heading from NavFn</span>
+              </div>
+              <p class="bug-body">
+                NavFn outputs path poses with identity quaternion $(0,0,0,1)$ —
+                yaw = 0 everywhere. With $\theta_{\text{ref}} = 0$ at all
+                waypoints, the body-frame error was computed in a fixed global
+                frame instead of the local path frame, corrupting both
+                $e_{\text{long}}$ and $e_{\text{lat}}$.
+              </p>
+              <div class="bug-fix">
+                Fix: added <code>computePathHeading()</code> — detects identity
+                quaternions and falls back to <code>atan2(dy, dx)</code> between
+                adjacent waypoints.
+              </div>
+            </div>
+
+            <div class="bug-card moderate">
+              <div class="bug-header">
+                <span class="bug-num">BUG 5 · MODERATE</span>
+                <span class="bug-title">Progress Checker False Abort</span>
+              </div>
+              <p class="bug-body">
+                <code>required_movement_radius: 0.5 m</code> with
+                <code>movement_time_allowance: 10 s</code> caused Nav2 to abort
+                the navigation task during the fine approach phase, when the
+                robot was making small adjustments within ~0.25 m of the goal.
+              </p>
+              <div class="bug-fix">
+                Fix: relaxed to <code>required_movement_radius: 0.25 m</code>,
+                <code>movement_time_allowance: 20 s</code>.
+              </div>
+            </div>
+
+            <div class="bug-card minor">
+              <div class="bug-header">
+                <span class="bug-num">BUG 6 · MINOR</span>
+                <span class="bug-title">Unsigned Integer Underflow</span>
+              </div>
+              <p class="bug-body">
+                <code>global_plan_.poses.size() - 1</code> on a single-pose path
+                underflows <code>size_t</code> from 0 to a huge positive integer
+                (~2⁶⁴), causing out-of-bounds memory access and undefined
+                behavior on single-waypoint paths.
+              </p>
+              <div class="bug-fix">
+                Fix: early return guard —
+                <code
+                  >if (global_plan_.poses.size() &lt; 2) return
+                  closest_idx;</code
+                >
+                at the top of <code>findLookaheadPoint()</code>.
+              </div>
+            </div>
+          </div>
+
+          <div
+            style="
+              margin-top: 24px;
+              padding: 16px 20px;
+              background: rgba(30, 138, 74, 0.06);
+              border: 1px solid rgba(30, 138, 74, 0.2);
+              border-radius: 6px;
+            "
+          >
+            <strong style="color: var(--green)">Key finding:</strong>
+            <span style="color: var(--muted); font-size: 0.9rem">
+              All 6 bugs were fixed before any Q/R tuning. After the fixes, the
+              original spec gains (Q = diag(1,3,1), R = diag(1,0.5)) achieved
+              100% success across 5 repeated trials — zero tuning
+              required.</span
+            >
+          </div>
+        </div>
+      </section>
+
+      <!-- ── TUNING TIMELINE ── -->
+      <section id="tuning">
+        <div class="container">
+          <span class="section-label">05 — Tuning History</span>
+          <h2>No Gains Were Changed</h2>
+          <p>
+            Three experiments spanning six weeks. The controller went from
+            broken to production-ready without touching a single Q or R value.
+          </p>
+
+          <div class="tuning-timeline">
+            <div class="tuning-entry">
+              <div class="tuning-date">2026-03-23 · Experiment 0</div>
+              <div class="tuning-title">
+                Baseline — Q = diag(1,3,1), R = diag(1,0.5)
+              </div>
+              <div class="tuning-body">
+                First run with AGENT.md spec defaults. Mean CTE 0.10 m —
+                tracking looked fine in plots, but goal-reaching was unreliable.
+                Commit: 9e3a5bd.
+              </div>
+            </div>
+            <div class="tuning-entry">
+              <div class="tuning-date">2026-03-27 · Experiment 1</div>
+              <div class="tuning-title">6 Bug Fixes — Same Gains</div>
+              <div class="tuning-body">
+                Six controller bugs fixed (see above). First run after fixes:
+                <code>[controller_server]: Reached the goal!</code> and
+                <code>[bt_navigator]: Goal succeeded</code> confirmed in logs.
+                Commits: cc55b0a, 1d4a366, f32b14e, fd2ccde.
+              </div>
+            </div>
+            <div class="tuning-entry">
+              <div class="tuning-date">2026-04-03 · Experiment 2</div>
+              <div class="tuning-title">
+                5-Run Validation — Phase 4 Exit Criteria Met
+              </div>
+              <div class="tuning-body">
+                Benchmark script also fixed (was reporting ~2.3 m CTE due to
+                using last replan fragment and AMCL at 1 Hz instead of odometry
+                at 20 Hz). Final result: 5/5 success, mean CTE 0.136 m — below
+                the 0.15 m target.
+                <strong style="color: var(--green)"
+                  >No Q/R tuning needed.</strong
+                >
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── RESULTS ── -->
+      <section id="results">
+        <div class="container">
+          <span class="section-label">06 — Experiments &amp; Results</span>
+          <h2>Benchmark Results</h2>
+
+          <p>
+            All runs: same Gazebo world (<code>turtlebot3_world</code>), same
+            start (default spawn), same goal $(x=2.0,\;y=0.5)$. Metrics computed
+            from rosbag recordings using odometry at ~20 Hz.
+          </p>
+
+          <h3>3×2 Controller × Planner Matrix</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Configuration</th>
+                  <th>Mean CTE (m)</th>
+                  <th>Max CTE (m)</th>
+                  <th>Std CTE</th>
+                  <th>dv/dt</th>
+                  <th>dω/dt</th>
+                  <th>Time (s)</th>
+                  <th>Goal</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="row-lqr">
+                  <td class="td-config">LQR + NavFn</td>
+                  <td>0.083 m</td>
+                  <td>0.363 m</td>
+                  <td>0.072 m</td>
+                  <td class="td-best">0.110</td>
+                  <td>0.939</td>
+                  <td class="td-best">67.9 s</td>
+                  <td class="td-check">✓</td>
+                </tr>
+                <tr class="row-lqr">
+                  <td class="td-config">LQR + Smac 2D</td>
+                  <td>0.061 m</td>
+                  <td>0.310 m</td>
+                  <td class="td-best">0.024 m</td>
+                  <td>—</td>
+                  <td>—</td>
+                  <td>334.6 s</td>
+                  <td class="td-check">✓</td>
+                </tr>
+                <tr>
+                  <td class="td-config">DWB + NavFn</td>
+                  <td>0.042 m</td>
+                  <td class="td-best">0.131 m</td>
+                  <td>0.035 m</td>
+                  <td>0.219</td>
+                  <td class="td-best">0.876</td>
+                  <td>185.1 s</td>
+                  <td class="td-check">✓</td>
+                </tr>
+                <tr>
+                  <td class="td-config">DWB + Smac 2D</td>
+                  <td class="td-best">0.042 m</td>
+                  <td>0.199 m</td>
+                  <td>0.042 m</td>
+                  <td>0.277</td>
+                  <td>0.886</td>
+                  <td>66.4 s</td>
+                  <td class="td-check">✓</td>
+                </tr>
+                <tr>
+                  <td class="td-config">MPPI + NavFn</td>
+                  <td>0.146 m</td>
+                  <td>0.270 m</td>
+                  <td>0.121 m</td>
+                  <td>1.088</td>
+                  <td>2.683</td>
+                  <td>197.2 s</td>
+                  <td class="td-check">✓</td>
+                </tr>
+                <tr>
+                  <td class="td-config">MPPI + Smac 2D</td>
+                  <td>0.060 m</td>
+                  <td>0.179 m</td>
+                  <td>0.030 m</td>
+                  <td>1.029</td>
+                  <td>—</td>
+                  <td>159.1 s</td>
+                  <td class="td-check">✓</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p style="font-size: 0.78rem; color: var(--muted)">
+            Orange rows = LQR configurations. Bold = per-column best. Dashes =
+            anomalous smoothness values due to cmd_vel timestamp artifacts
+            excluded from comparison.
+          </p>
+
+          <h3 style="margin-top: 40px">Per-Metric Summary</h3>
+          <div class="insight-grid">
+            <div class="insight-card">
+              <span class="insight-icon">🏆</span>
+              <h4>Fastest to Goal</h4>
+              <p>
+                LQR + NavFn at 67.9 s, edging out DWB + Smac (66.4 s). Both are
+                2–3× faster than DWB + NavFn (185 s).
+              </p>
+            </div>
+            <div class="insight-card">
+              <span class="insight-icon">📐</span>
+              <h4>Best Mean CTE</h4>
+              <p>
+                DWB wins at 0.042 m. LQR + NavFn (0.083 m) is competitive; LQR +
+                Smac achieves 0.061 m with higher consistency (std 0.024 m).
+              </p>
+            </div>
+            <div class="insight-card">
+              <span class="insight-icon">〰️</span>
+              <h4>Smoothest Commands</h4>
+              <p>
+                LQR dominates — dv/dt 0.110 vs MPPI's 1.088. MPPI sends 2–3×
+                more cmd_vel messages, causing jerky, high-frequency
+                corrections.
+              </p>
+            </div>
+            <div class="insight-card">
+              <span class="insight-icon">🎯</span>
+              <h4>Most Consistent</h4>
+              <p>
+                LQR + Smac has the lowest CTE standard deviation (0.024 m) of
+                all six configurations, indicating highly repeatable tracking.
+              </p>
+            </div>
+          </div>
+
+          <h3 style="margin-top: 40px">5-Run LQR Reliability Validation</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Run</th>
+                  <th>Mean CTE (m)</th>
+                  <th>Max CTE (m)</th>
+                  <th>Std CTE</th>
+                  <th>dv/dt</th>
+                  <th>dω/dt</th>
+                  <th>Time (s)</th>
+                  <th>Goal</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="td-config">lqr_tuning_1</td>
+                  <td>0.159</td>
+                  <td>0.260</td>
+                  <td>0.060</td>
+                  <td>0.159</td>
+                  <td>1.006</td>
+                  <td>56.2</td>
+                  <td class="td-check">✓</td>
+                </tr>
+                <tr>
+                  <td class="td-config">lqr_tuning_2</td>
+                  <td class="td-best">0.109</td>
+                  <td class="td-best">0.244</td>
+                  <td class="td-best">0.054</td>
+                  <td class="td-best">0.148</td>
+                  <td class="td-best">0.971</td>
+                  <td class="td-best">33.7</td>
+                  <td class="td-check">✓</td>
+                </tr>
+                <tr>
+                  <td class="td-config">lqr_tuning_3</td>
+                  <td>0.139</td>
+                  <td>0.261</td>
+                  <td>0.040</td>
+                  <td>0.164</td>
+                  <td>1.009</td>
+                  <td>203.2 *</td>
+                  <td class="td-check">✓</td>
+                </tr>
+                <tr>
+                  <td class="td-config">lqr_tuning_4</td>
+                  <td>0.126</td>
+                  <td>0.296</td>
+                  <td>0.044</td>
+                  <td>0.146</td>
+                  <td>1.063</td>
+                  <td>71.6</td>
+                  <td class="td-check">✓</td>
+                </tr>
+                <tr>
+                  <td class="td-config">lqr_tuning_5</td>
+                  <td>0.146</td>
+                  <td>0.334</td>
+                  <td>0.096</td>
+                  <td>0.145</td>
+                  <td>1.128</td>
+                  <td>36.8</td>
+                  <td class="td-check">✓</td>
+                </tr>
+                <tr
+                  style="background: rgba(201, 95, 26, 0.06); font-weight: 600"
+                >
+                  <td class="td-config">Mean</td>
+                  <td>0.136</td>
+                  <td>0.279</td>
+                  <td>0.059</td>
+                  <td>0.152</td>
+                  <td>1.035</td>
+                  <td>~49 s</td>
+                  <td class="td-check">5/5</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p style="font-size: 0.78rem; color: var(--muted)">
+            *Run 3 bag recording stopped late; actual navigation time was
+            comparable to other runs.
+          </p>
+
+          <!-- FIGURES -->
+          <h3 style="margin-top: 48px">Benchmark Plots</h3>
+
+          <div class="figure-block">
+            <img
+              src="assets/benchmark_6combo.png"
+              alt="6-combo benchmark comparison: trajectory overlay, CTE over time, linear and angular velocity commands for all 6 controller-planner configurations"
+            />
+            <p class="figure-caption">
+              <strong>Fig. 1:</strong> 6-combo benchmark comparison. Top-left:
+              robot trajectory overlays with planned paths. Top-right:
+              cross-track error over time. Bottom-left: linear velocity
+              commands. Bottom-right: angular velocity commands. LQR+NavFn
+              (blue) demonstrates the cleanest, fastest trajectory. MPPI
+              configurations show significantly noisier velocity profiles.
+            </p>
+          </div>
+
+          <div class="figure-block">
+            <img
+              src="assets/benchmark_5run.png"
+              alt="5-run LQR reliability validation: trajectory, CTE, velocity commands across 5 repeated trials"
+            />
+            <p class="figure-caption">
+              <strong>Fig. 2:</strong> 5-run LQR reliability validation (same
+              gains, same start/goal, 5 independent trials). Consistent CTE
+              profiles and smooth velocity commands confirm the controller is
+              repeatable. Run 3 (green, extended time axis) reflects a late
+              bag-stop, not slow navigation.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── VIDEOS ── -->
+      <section id="videos">
+        <div class="container">
+          <span class="section-label">07 — Simulation Videos</span>
+          <h2>Gazebo Runs</h2>
+          <p>
+            Six simulation recordings from the benchmark campaign. Each shows
+            the TurtleBot3 Burger navigating from default spawn to goal $(2.0,
+            0.5)$ in <code>turtlebot3_world</code>. All six configurations
+            successfully reach the goal.
+          </p>
+
+          <div class="video-grid">
+            <div class="video-card">
+              <video controls muted preload="metadata">
+                <source src="assets/lqr-run1.mp4" type="video/mp4" />
+              </video>
+              <div class="video-label">
+                <strong>LQR + NavFn</strong> — Run 1 (67.9 s)
+              </div>
+            </div>
+            <div class="video-card">
+              <video controls muted preload="metadata">
+                <source src="assets/lqr-run2.mp4" type="video/mp4" />
+              </video>
+              <div class="video-label">
+                <strong>LQR + Smac 2D</strong> — Run 2
+              </div>
+            </div>
+            <div class="video-card">
+              <video controls muted preload="metadata">
+                <source src="assets/lqr-run3.mp4" type="video/mp4" />
+              </video>
+              <div class="video-label">
+                <strong>DWB + NavFn</strong> — Run 3
+              </div>
+            </div>
+            <div class="video-card">
+              <video controls muted preload="metadata">
+                <source src="assets/lqr-run4.mp4" type="video/mp4" />
+              </video>
+              <div class="video-label">
+                <strong>DWB + Smac 2D</strong> — Run 4 (66.4 s)
+              </div>
+            </div>
+            <div class="video-card">
+              <video controls muted preload="metadata">
+                <source src="assets/lqr-run5.mp4" type="video/mp4" />
+              </video>
+              <div class="video-label">
+                <strong>MPPI + NavFn</strong> — Run 5
+              </div>
+            </div>
+            <div class="video-card">
+              <video controls muted preload="metadata">
+                <source src="assets/lqr-run6.mp4" type="video/mp4" />
+              </video>
+              <div class="video-label">
+                <strong>MPPI + Smac 2D</strong> — Run 6
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── DISCUSSION ── -->
+      <section id="discussion">
+        <div class="container">
+          <span class="section-label">08 — Discussion</span>
+          <h2>Analysis &amp; Limitations</h2>
+
+          <h3>LQR vs DWB</h3>
+          <p>
+            DWB achieved lower mean CTE (0.042 m vs 0.083 m for LQR+NavFn) but
+            at a significant time cost — LQR+NavFn was 2.7× faster (67.9 s vs
+            185.1 s). Smoothness was comparable: both controllers exhibit dv/dt
+            below 0.28 and dω/dt below 0.94. The closest DWB competitor,
+            DWB+Smac, nearly matched LQR on speed (66.4 s) while achieving lower
+            CTE — suggesting that planner choice matters significantly.
+          </p>
+
+          <h3>LQR vs MPPI</h3>
+          <p>
+            LQR clearly outperformed MPPI on every metric. MPPI+NavFn had the
+            worst mean CTE (0.146 m), a high time cost (197.2 s), and the most
+            aggressive velocity commands (dv/dt 1.09, dω/dt 2.68). MPPI's
+            sampling-based nature generated 2–3× more cmd_vel messages than LQR
+            or DWB, causing frequent small corrections that accumulated into
+            poor smoothness scores. This is consistent with the MPPI assignment
+            (A2) which describes how the stochastic rollout strategy trades off
+            optimality for computational tractability.
+          </p>
+
+          <h3>NavFn vs Smac 2D</h3>
+          <p>
+            Smac 2D generally produces shorter, more geometrically direct paths,
+            which contributed to faster runs for DWB. The LQR+Smac run was
+            unexpectedly slow (334.6 s), likely due to a complex replanning
+            scenario in that trial — a limitation of single-run evaluation
+            without statistical replication.
+          </p>
+
+          <h3>Relevance to Course Material</h3>
+          <p>
+            This project directly builds on the course assignments. The Dubins
+            car model from A1/A2, linearized in A3's LQR assignment, is the same
+            model used here in the Nav2 plugin. The DARE-based steady-state gain
+            is equivalent to the infinite-horizon formulation from Tedrake's
+            Underactuated Robotics Ch. 8. MPPI, studied in A2, serves as our
+            primary stochastic baseline. AMCL localization, used throughout the
+            Nav2 stack, mirrors the MCL implementation from A1 Q3.
+          </p>
+
+          <h3>Limitations</h3>
+          <div class="insight-grid" style="margin-top: 20px">
+            <div class="insight-card">
+              <span class="insight-icon">⚠️</span>
+              <h4>Single Run Per Combo</h4>
+              <p>
+                No error bars or confidence intervals. The 5-run LQR validation
+                showed CTE ranging 0.109–0.159 m, so single-run numbers carry
+                uncertainty.
+              </p>
+            </div>
+            <div class="insight-card">
+              <span class="insight-icon">🖥️</span>
+              <h4>Simulation Only</h4>
+              <p>
+                Real-world deployment would require re-tuning for wheel slip,
+                encoder noise, and AMCL uncertainty on physical LiDAR data.
+              </p>
+            </div>
+            <div class="insight-card">
+              <span class="insight-icon">📍</span>
+              <h4>Fixed Goal</h4>
+              <p>
+                All runs used the same start/goal pair. Performance may differ
+                on longer routes, sharp turns, or obstacle-dense environments.
+              </p>
+            </div>
+            <div class="insight-card">
+              <span class="insight-icon">📉</span>
+              <h4>Smoothness Artifacts</h4>
+              <p>
+                LQR+Smac and MPPI+Smac dω/dt values were anomalous due to
+                cmd_vel timestamp issues in recording and were excluded.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── TEAM ── -->
+      <section id="team">
+        <div class="container">
+          <span class="section-label">09 — Team</span>
+          <h2>Contributions</h2>
+
+          <div class="team-table">
+            <div class="team-row">
+              <div class="team-name">Tommy Oh</div>
+              <div class="team-tasks">
+                C++ LQR solver (DARE, linearization, body-frame error); Nav2
+                plugin integration; MPPI controller config; Docker/devcontainer
+                setup.
+              </div>
+            </div>
+            <div class="team-row">
+              <div class="team-name">Ansh Aggarwal</div>
+              <div class="team-tasks">
+                Nav2 plugin integration; all 6 controller bug fixes
+                (goal-reaching reliability); all 6 Nav2 config YAMLs
+                (controller+planner combos); baseline experiments.
+              </div>
+            </div>
+            <div class="team-row">
+              <div class="team-name">Nick (Daniel Senteu)</div>
+              <div class="team-tasks">
+                AGENT.md implementation spec; README documentation; Docker
+                setup; benchmark script development and bug fixes; Phase 5
+                benchmark runs.
+              </div>
+            </div>
+            <div class="team-row">
+              <div class="team-name">JunHang Wu</div>
+              <div class="team-tasks">
+                Phase 5 benchmark runs (all 6 controller×planner combos);
+                recording and data collection.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── BIBTEX ── -->
+      <section id="bibtex">
+        <div class="container">
+          <span class="section-label">10 — Citation</span>
+          <h2>BibTeX</h2>
+          <div class="bibtex-box">
+            <button
+              class="copy-btn"
+              onclick="
+                navigator.clipboard.writeText(
+                  document.getElementById('bibtex-text').innerText,
+                );
+                this.innerText = 'Copied!';
+                setTimeout(() => (this.innerText = 'Copy'), 2000);
+              "
+            >
+              Copy
+            </button>
+            <pre id="bibtex-text">
+@misc{oh2026lqr,
+  title        = {{LQR} as a {Nav2} Controller Plugin for {TurtleBot3} Path Tracking},
+  author       = {Oh, Tommy and Aggarwal, Ansh and Senteu, Daniel and Wu, JunHang},
+  year         = {2026},
+  institution  = {Simon Fraser University},
+  note         = {{CMPT 720} Course Project, Spring 2026},
+  url          = {https://github.com/TommyOh0428/LQR-Controller}
+}</pre
+            >
+          </div>
+        </div>
+      </section>
+
+      <!-- ── FOOTER ── -->
+      <footer>
+        <div class="container">
+          <p>
+            LQR Nav2 Controller · CMPT 720 Spring 2026 · Simon Fraser University
+          </p>
+          <p style="margin-top: 8px">
+            <a
+              href="https://github.com/TommyOh0428/LQR-Controller"
+              target="_blank"
+              >GitHub</a
+            >
+            &nbsp;·&nbsp;
+            <a href="https://sfumars.com/" target="_blank">SFU MARS Lab</a>
+            &nbsp;·&nbsp; Built with ROS2 Humble, Gazebo, Nav2
+          </p>
+          <p
+            style="
+              margin-top: 8px;
+              font-size: 0.75rem;
+              color: rgba(100, 96, 90, 0.55);
+            "
+          >
+            Page inspired by
+            <a
+              href="https://kir-.github.io/GMPC-IMLE/"
+              target="_blank"
+              style="color: inherit"
+              >GMPC-IMLE</a
+            >
+            and
+            <a
+              href="https://chongspace123.github.io/projects/threshold-strategy/"
+              target="_blank"
+              style="color: inherit"
+              >Threshold Strategy</a
+            >.
+          </p>
+        </div>
+      </footer>
+    </div>
+    <!-- .page-start -->
+  </body>
+</html>

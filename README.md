@@ -52,7 +52,7 @@ $$e_{\theta} = \text{normalize}(\theta - \theta_{\text{ref}})$$
 
 Linearizing around **e = 0** with $v_{\text{ref}} = 0.2$ m/s and $\Delta t = 0.05$ s:
 
-$$A_d = \begin{bmatrix}1 & 0 & 0\\0 & 1 & v_{\text{ref}}\Delta t\\0 & 0 & 1\end{bmatrix}, \quad B_d = \begin{bmatrix}\Delta t & 0\\0 & 0\\0 & \Delta t\end{bmatrix}$$
+$$A_d = \begin{bmatrix}1 & 0 & 0 \\ 0 & 1 & v_{\text{ref}}\Delta t \\ 0 & 0 & 1\end{bmatrix}, \quad B_d = \begin{bmatrix}\Delta t & 0 \\ 0 & 0 \\ 0 & \Delta t\end{bmatrix}$$
 
 Because $v_{\text{ref}}$ and $\omega_{\text{ref}} = 0$ are constant, $A_d$ and $B_d$ are constant — DARE is solved *once* at startup, not every control cycle.
 

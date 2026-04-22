@@ -1026,7 +1026,7 @@
           <div class="stat-grid" style="margin-top: 56px">
             <div class="stat-card">
               <span class="stat-num">100%</span>
-              <span class="stat-label">Success Rate (5 runs)</span>
+              <span class="stat-label">Success Rate (6 runs)</span>
             </div>
             <div class="stat-card">
               <span class="stat-num">67.9s</span>
@@ -1432,67 +1432,35 @@
         </div>
       </section>
 
-      <!-- ── TUNING TIMELINE ── -->
-      <section id="tuning">
-        <div class="container">
-          <span class="section-label">05 — Tuning History</span>
-          <h2>No Gains Were Changed</h2>
-          <p>
-            Three experiments spanning six weeks. The controller went from
-            broken to production-ready without touching a single Q or R value.
-          </p>
-
-          <div class="tuning-timeline">
-            <div class="tuning-entry">
-              <div class="tuning-date">2026-03-23 · Experiment 0</div>
-              <div class="tuning-title">
-                Baseline — Q = diag(1,3,1), R = diag(1,0.5)
-              </div>
-              <div class="tuning-body">
-                First run with AGENT.md spec defaults. Mean CTE 0.10 m —
-                tracking looked fine in plots, but goal-reaching was unreliable.
-                Commit: 9e3a5bd.
-              </div>
-            </div>
-            <div class="tuning-entry">
-              <div class="tuning-date">2026-03-27 · Experiment 1</div>
-              <div class="tuning-title">6 Bug Fixes — Same Gains</div>
-              <div class="tuning-body">
-                Six controller bugs fixed (see above). First run after fixes:
-                <code>[controller_server]: Reached the goal!</code> and
-                <code>[bt_navigator]: Goal succeeded</code> confirmed in logs.
-                Commits: cc55b0a, 1d4a366, f32b14e, fd2ccde.
-              </div>
-            </div>
-            <div class="tuning-entry">
-              <div class="tuning-date">2026-04-03 · Experiment 2</div>
-              <div class="tuning-title">
-                5-Run Validation — Phase 4 Exit Criteria Met
-              </div>
-              <div class="tuning-body">
-                Benchmark script also fixed (was reporting ~2.3 m CTE due to
-                using last replan fragment and AMCL at 1 Hz instead of odometry
-                at 20 Hz). Final result: 5/5 success, mean CTE 0.136 m — below
-                the 0.15 m target.
-                <strong style="color: var(--green)"
-                  >No Q/R tuning needed.</strong
-                >
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       <!-- ── RESULTS ── -->
       <section id="results">
         <div class="container">
-          <span class="section-label">06 — Experiments &amp; Results</span>
+          <span class="section-label">05 — Experiments &amp; Results</span>
           <h2>Benchmark Results</h2>
 
           <p>
             All runs: same Gazebo world (<code>turtlebot3_world</code>), same
             start (default spawn), same goal $(x=2.0,\;y=0.5)$. Metrics computed
             from rosbag recordings using odometry at ~20 Hz.
+          </p>
+
+          <p
+            style="
+              font-size: 0.85rem;
+              color: var(--muted);
+              background: rgba(160, 120, 10, 0.06);
+              border-left: 3px solid #9a7200;
+              padding: 12px 16px;
+              border-radius: 0 4px 4px 0;
+              margin-top: 14px;
+            "
+          >
+            <strong style="color: #9a7200">Note on timing accuracy:</strong>
+            Reported <em>Time (s)</em> values are approximate. The benchmark
+            workflow is manual — we start <code>ros2 bag record</code>, send the
+            goal, and stop the bag with <code>Ctrl+C</code> once the robot
+            reaches the goal. Human reaction time on start/stop adds a few
+            seconds of uncertainty to each timing measurement.
           </p>
 
           <h3>3×2 Controller × Planner Matrix</h3>
@@ -1579,43 +1547,6 @@
             anomalous smoothness values due to cmd_vel timestamp artifacts
             excluded from comparison.
           </p>
-
-          <h3 style="margin-top: 40px">Per-Metric Summary</h3>
-          <div class="insight-grid">
-            <div class="insight-card">
-              <span class="insight-icon">🏆</span>
-              <h4>Fastest to Goal</h4>
-              <p>
-                LQR + NavFn at 67.9 s, edging out DWB + Smac (66.4 s). Both are
-                2–3× faster than DWB + NavFn (185 s).
-              </p>
-            </div>
-            <div class="insight-card">
-              <span class="insight-icon">📐</span>
-              <h4>Best Mean CTE</h4>
-              <p>
-                DWB wins at 0.042 m. LQR + NavFn (0.083 m) is competitive; LQR +
-                Smac achieves 0.061 m with higher consistency (std 0.024 m).
-              </p>
-            </div>
-            <div class="insight-card">
-              <span class="insight-icon">〰️</span>
-              <h4>Smoothest Commands</h4>
-              <p>
-                LQR dominates — dv/dt 0.110 vs MPPI's 1.088. MPPI sends 2–3×
-                more cmd_vel messages, causing jerky, high-frequency
-                corrections.
-              </p>
-            </div>
-            <div class="insight-card">
-              <span class="insight-icon">🎯</span>
-              <h4>Most Consistent</h4>
-              <p>
-                LQR + Smac has the lowest CTE standard deviation (0.024 m) of
-                all six configurations, indicating highly repeatable tracking.
-              </p>
-            </div>
-          </div>
 
           <h3 style="margin-top: 40px">5-Run LQR Reliability Validation</h3>
           <div class="table-wrap">
@@ -1740,7 +1671,7 @@
       <!-- ── VIDEOS ── -->
       <section id="videos">
         <div class="container">
-          <span class="section-label">07 — Simulation Videos</span>
+          <span class="section-label">06 — Simulation Videos</span>
           <h2>Gazebo Runs</h2>
           <p>
             Six simulation recordings from the benchmark campaign. Each shows
@@ -1805,7 +1736,7 @@
       <!-- ── DISCUSSION ── -->
       <section id="discussion">
         <div class="container">
-          <span class="section-label">08 — Discussion</span>
+          <span class="section-label">07 — Discussion</span>
           <h2>Analysis &amp; Limitations</h2>
 
           <h3>LQR vs DWB</h3>
@@ -1845,54 +1776,21 @@
             car model from A1/A2, linearized in A3's LQR assignment, is the same
             model used here in the Nav2 plugin. The DARE-based steady-state gain
             is equivalent to the infinite-horizon formulation from Tedrake's
-            Underactuated Robotics Ch. 8. MPPI, studied in A2, serves as our
-            primary stochastic baseline. AMCL localization, used throughout the
-            Nav2 stack, mirrors the MCL implementation from A1 Q3.
+            Underactuated Robotics Ch. 8. Our custom C++ MPPI controller used in
+            the benchmark is a direct port of the MPPI implementation from A2 —
+            the same stochastic rollout strategy, now wrapped as a Nav2 plugin
+            and evaluated against LQR and DWB. AMCL localization, used
+            throughout the Nav2 stack, mirrors the MCL implementation from A1
+            Q3.
           </p>
 
-          <h3>Limitations</h3>
-          <div class="insight-grid" style="margin-top: 20px">
-            <div class="insight-card">
-              <span class="insight-icon">⚠️</span>
-              <h4>Single Run Per Combo</h4>
-              <p>
-                No error bars or confidence intervals. The 5-run LQR validation
-                showed CTE ranging 0.109–0.159 m, so single-run numbers carry
-                uncertainty.
-              </p>
-            </div>
-            <div class="insight-card">
-              <span class="insight-icon">🖥️</span>
-              <h4>Simulation Only</h4>
-              <p>
-                Real-world deployment would require re-tuning for wheel slip,
-                encoder noise, and AMCL uncertainty on physical LiDAR data.
-              </p>
-            </div>
-            <div class="insight-card">
-              <span class="insight-icon">📍</span>
-              <h4>Fixed Goal</h4>
-              <p>
-                All runs used the same start/goal pair. Performance may differ
-                on longer routes, sharp turns, or obstacle-dense environments.
-              </p>
-            </div>
-            <div class="insight-card">
-              <span class="insight-icon">📉</span>
-              <h4>Smoothness Artifacts</h4>
-              <p>
-                LQR+Smac and MPPI+Smac dω/dt values were anomalous due to
-                cmd_vel timestamp issues in recording and were excluded.
-              </p>
-            </div>
-          </div>
         </div>
       </section>
 
       <!-- ── TEAM ── -->
       <section id="team">
         <div class="container">
-          <span class="section-label">09 — Team</span>
+          <span class="section-label">08 — Team</span>
           <h2>Contributions</h2>
 
           <div class="team-table">
@@ -1915,9 +1813,9 @@
             <div class="team-row">
               <div class="team-name">Nick (Daniel Senteu)</div>
               <div class="team-tasks">
-                AGENT.md implementation spec; README documentation; Docker
-                setup; benchmark script development and bug fixes; Phase 5
-                benchmark runs.
+                Implementation spec; README documentation; Docker setup;
+                benchmark script development and bug fixes; Phase 5 benchmark
+                runs.
               </div>
             </div>
             <div class="team-row">
@@ -1934,7 +1832,7 @@
       <!-- ── BIBTEX ── -->
       <section id="bibtex">
         <div class="container">
-          <span class="section-label">10 — Citation</span>
+          <span class="section-label">09 — Citation</span>
           <h2>BibTeX</h2>
           <div class="bibtex-box">
             <button

@@ -48,31 +48,17 @@ FAIL_FAST_BT_XML = (
 START = {'x': -2.0, 'y': -0.5, 'yaw': 0.0}
 GOAL = {'x': 2.0, 'y': 0.5, 'qz': 0.0, 'qw': 1.0}
 
-# ── planner configs ─────────────────────────────────────────────────
-NAVFN = {
-    'plugin': 'nav2_navfn_planner/NavfnPlanner',
-    'tolerance': 0.5,
-    'use_astar': False,
-    'allow_unknown': True,
-}
-
-SMAC_2D = {
-    'plugin': 'nav2_smac_planner/SmacPlanner2D',
-    'tolerance': 0.125,
-    'allow_unknown': True,
-    'max_iterations': 1000000,
-    'max_on_approach_iterations': 1000,
-    'max_planning_time': 2.0,
-    'use_final_approach_orientation': False,
-}
-
 # ── combos ───────────────────────────────────────────────────────────
-# (name, base_yaml_in_config/, planner_override_or_None)
+# Each combo has its own dedicated config YAML that already contains the
+# correct controller and planner settings — no overrides needed.
+# (name, config_yaml_filename)
 COMBOS = [
-    ('lqr_navfn', 'nav2_params.yaml', None),     # LQR + NavFn  (base already set)
-    ('lqr_smac',  'nav2_params.yaml', SMAC_2D),   # LQR + SMAC 2D
-    ('dwb_navfn', 'dwb_params.yaml',  None),       # DWB + NavFn  (base already set)
-    ('dwb_smac',  'dwb_params.yaml',  SMAC_2D),   # DWB + SMAC 2D
+    ('lqr_navfn',  'lqr_navfn_params.yaml'),
+    ('lqr_smac',   'lqr_smac_params.yaml'),
+    ('dwb_navfn',  'dwb_navfn_params.yaml'),
+    ('dwb_smac',   'dwb_smac_params.yaml'),
+    ('mppi_navfn', 'mppi_navfn_params.yaml'),
+    ('mppi_smac',  'mppi_smac_params.yaml'),
 ]
 
 # ─────────────────────────────────────────────────────────────────────
@@ -85,25 +71,24 @@ def log(msg, level='INFO'):
 
 # ── YAML generation ─────────────────────────────────────────────────
 
-def generate_params(base_config, planner_override, output_path):
-    """Load a base nav2 YAML, optionally swap the planner, and save."""
-    with open(os.path.join(CONFIG_DIR, base_config)) as f:
+def generate_params(config_filename, output_path):
+    """Load a combo config YAML, inject runtime overrides, and save to tmp."""
+    with open(os.path.join(CONFIG_DIR, config_filename)) as f:
         params = yaml.safe_load(f)
-
-    if planner_override is not None:
-        params['planner_server']['ros__parameters']['GridBased'] = planner_override
 
     # Use a fail-fast BT without recovery loops so failed runs return quickly
     # instead of spending the full action timeout in repeated recovery cycles.
     params['bt_navigator']['ros__parameters']['default_nav_to_pose_bt_xml'] = FAIL_FAST_BT_XML
 
-    # Loosen progress checker — the LQR controller uses high angular velocity on
-    # path entry so the robot translates < 0.5 m in the default 10 s window.
-    params['controller_server']['ros__parameters']['progress_checker'] = {
-        'plugin': 'nav2_controller::SimpleProgressChecker',
-        'required_movement_radius': 0.2,
-        'movement_time_allowance': 30.0,
-    }
+    # Ensure progress checker is permissive enough for controllers that use
+    # high angular velocity on initial path entry (e.g. LQR).
+    checker = params['controller_server']['ros__parameters'].get('progress_checker', {})
+    checker.setdefault('plugin', 'nav2_controller::SimpleProgressChecker')
+    if checker.get('required_movement_radius', 1.0) > 0.2:
+        checker['required_movement_radius'] = 0.2
+    if checker.get('movement_time_allowance', 0) < 30.0:
+        checker['movement_time_allowance'] = 30.0
+    params['controller_server']['ros__parameters']['progress_checker'] = checker
 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     with open(output_path, 'w') as f:
@@ -145,7 +130,10 @@ def purge_nav2_processes(wait_secs=5):
             capture_output=True,
         )
     # Also reset the ROS 2 daemon so stale node listings are cleared
-    subprocess.run(['ros2', 'daemon', 'stop'], capture_output=True, timeout=5)
+    try:
+        subprocess.run(['ros2', 'daemon', 'stop'], capture_output=True, timeout=10)
+    except (subprocess.TimeoutExpired, Exception):
+        pass
     time.sleep(wait_secs)
 
 
@@ -239,7 +227,7 @@ def run_single(combo_name, run_idx, params_file, nav_timeout):
         log('  Activating map server …')
         if not lifecycle_activate('/map_server'):
             log('  FAILED to activate map server', 'ERROR')
-            return False
+            return False, 'FAILED_STARTUP'
         time.sleep(2)
 
         # 4) navigation stack  (controller, planner, bt_navigator, …)
@@ -255,7 +243,7 @@ def run_single(combo_name, run_idx, params_file, nav_timeout):
         log('  Waiting for /navigate_to_pose action …')
         if not wait_for_action('/navigate_to_pose', timeout=90):
             log('  Nav2 action server never appeared', 'ERROR')
-            return False
+            return False, 'FAILED_STARTUP'
         time.sleep(5)          # let costmaps settle
 
         # 6) start bag recording
@@ -393,9 +381,9 @@ def main():
     print()
 
     # ── run loop ─────────────────────────────────────────────────────
-    for combo_name, base_config, planner_override in combos:
+    for combo_name, config_filename in combos:
         params_file = os.path.join(TMP_DIR, f'{combo_name}_params.yaml')
-        generate_params(base_config, planner_override, params_file)
+        generate_params(config_filename, params_file)
         log(f'Params: {params_file}')
 
         for run_idx in range(1, args.runs + 1):

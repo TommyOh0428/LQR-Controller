@@ -65,6 +65,10 @@ private:
   double lookahead_distance_;    // meters ahead on path for reference point
   double dt_;                    // discretization timestep (s)
 
+  // DARE solver settings
+  int dare_max_iterations_;
+  double dare_tolerance_;
+
   // Q diagonal weights (3x3 state cost)
   double q_long_;                // along-track error weight
   double q_lat_;                 // lateral error weight
@@ -77,6 +81,10 @@ private:
   // --- LQR matrices (Eigen3) ---
   Eigen::Matrix3d Q_;                       // 3x3 state cost
   Eigen::Matrix2d R_;                       // 2x2 control cost
+  Eigen::Matrix3d A_d_;                     // discrete state matrix
+  Eigen::Matrix<double, 3, 2> B_d_;         // discrete input matrix
+  Eigen::Matrix3d P_;                       // DARE solution
+  Eigen::Matrix<double, 2, 3> K_;           // LQR gain
 
   // --- Helper methods ---
   size_t findClosestPoint(const geometry_msgs::msg::PoseStamped & pose);

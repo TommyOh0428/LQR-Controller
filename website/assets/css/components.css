@@ -52,6 +52,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
+  justify-content: center;
 }
 
 .btn {
@@ -117,9 +118,10 @@
 
 .stat-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 16px;
-  margin: 40px 0;
+  margin: 40px auto;
+  max-width: 750px;
 }
 
 .stat-card {

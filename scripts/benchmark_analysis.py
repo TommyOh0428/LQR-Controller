@@ -367,10 +367,181 @@ def plot_comparison(all_results, run_dir):
     axes[1, 1].legend()
 
     plt.tight_layout()
-    postfix = '_vs_'.join(r['name'] for r in all_results)
+    if len(all_results) <= 4:
+        postfix = '_vs_'.join(r['name'] for r in all_results)
+    else:
+        postfix = f'{len(all_results)}_bags'
     out_path = os.path.join(run_dir, f'benchmark_comparison_{postfix}.png')
     plt.savefig(out_path, dpi=150)
     print(f"\nPlot saved to {out_path}")
+    plt.close(fig)
+
+
+def aggregate_by_combo(all_results):
+    """Group results by combo name (strip trailing _run_N) and compute mean/std.
+
+    Returns a list of dicts, one per combo, with keys:
+      name, runs, success_rate, and <metric>_mean / <metric>_std for each numeric metric.
+    """
+    import re
+    groups = {}
+    for r in all_results:
+        combo = re.sub(r'_run_\d+$', '', r['name'])
+        groups.setdefault(combo, []).append(r)
+
+    metric_keys = ['mean_cte', 'max_cte', 'std_cte',
+                   'rms_dv', 'rms_domega', 'time_to_goal',
+                   'dist_to_goal', 'final_x', 'final_y']
+
+    aggregated = []
+    for combo, runs in groups.items():
+        entry = {'name': combo, 'runs': len(runs)}
+        successes = [r for r in runs if r['succeeded']]
+        entry['success_rate'] = len(successes) / len(runs)
+        # Only include successful runs in metrics — failed runs distort averages
+        sample = successes if successes else runs
+        for k in metric_keys:
+            vals = np.array([r[k] for r in sample])
+            entry[f'{k}_mean'] = float(np.mean(vals))
+            entry[f'{k}_std'] = float(np.std(vals))
+        aggregated.append(entry)
+    aggregated.sort(key=lambda e: e['name'])
+    return aggregated
+
+
+def format_average_table(aggregated):
+    """Build averaged metric table (mean ± std) across runs of each combo."""
+    lines = [f"\n{'=' * 100}",
+             "AVERAGED METRICS (mean ± std, successful runs only)",
+             f"{'=' * 100}"]
+
+    header = f"{'Metric':<22}"
+    for a in aggregated:
+        header += f"  {a['name']:<22}"
+    lines.append(header)
+    lines.append("-" * 100)
+
+    metrics = [
+        ('Mean CTE (m)', 'mean_cte', '.4f'),
+        ('Max CTE (m)', 'max_cte', '.4f'),
+        ('Std CTE (m)', 'std_cte', '.4f'),
+        ('Smoothness dv/dt', 'rms_dv', '.4f'),
+        ('Smoothness dw/dt', 'rms_domega', '.4f'),
+        ('Time to goal (s)', 'time_to_goal', '.2f'),
+    ]
+
+    for label, key, fmt in metrics:
+        row = f"{label:<22}"
+        for a in aggregated:
+            cell = f"{format(a[f'{key}_mean'], fmt)} ± {format(a[f'{key}_std'], fmt)}"
+            row += f"  {cell:<22}"
+        lines.append(row)
+
+    row = f"{'Reached goal':<22}"
+    for a in aggregated:
+        cell = f"{int(a['success_rate'] * a['runs'])}/{a['runs']}"
+        row += f"  {cell:<22}"
+    lines.append(row)
+
+    row = f"{'Distance to goal (m)':<22}"
+    for a in aggregated:
+        cell = f"{format(a['dist_to_goal_mean'], '.3f')} ± {format(a['dist_to_goal_std'], '.3f')}"
+        row += f"  {cell:<22}"
+    lines.append(row)
+
+    row = f"{'Final position':<22}"
+    for a in aggregated:
+        cell = f"x={a['final_x_mean']:.3f} y={a['final_y_mean']:.3f}"
+        row += f"  {cell:<22}"
+    lines.append(row)
+
+    return "\n".join(lines)
+
+
+def plot_averaged_comparison(all_results, run_dir):
+    """Group runs by combo (strip _run_N) and plot one averaged curve per combo.
+
+    Trajectories and time-series are resampled onto a common grid before averaging,
+    since runs have different lengths.
+    """
+    import re
+    groups = {}
+    for r in all_results:
+        combo = re.sub(r'_run_\d+$', '', r['name'])
+        groups.setdefault(combo, []).append(r)
+
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    N = 200  # resample grid size
+
+    for combo, runs in sorted(groups.items()):
+        # --- averaged trajectory (x, y over normalized progression) ---
+        xs_stack, ys_stack = [], []
+        for r in runs:
+            traj = r['trajectory']
+            if not traj:
+                continue
+            s = np.linspace(0, 1, len(traj))
+            grid = np.linspace(0, 1, N)
+            xs_stack.append(np.interp(grid, s, [p[1] for p in traj]))
+            ys_stack.append(np.interp(grid, s, [p[2] for p in traj]))
+        if xs_stack:
+            axes[0, 0].plot(np.mean(xs_stack, axis=0), np.mean(ys_stack, axis=0), label=combo)
+
+        # --- averaged CTE over time ---
+        cte_stack = []
+        t_max = max((r['trajectory'][-1][0] - r['trajectory'][0][0])
+                    for r in runs if r['trajectory'] and r['cte'])
+        grid_t = np.linspace(0, t_max, N)
+        for r in runs:
+            if not r['cte'] or not r['trajectory']:
+                continue
+            traj = r['trajectory']
+            times = np.array([p[0] - traj[0][0] for p in traj[:len(r['cte'])]])
+            cte_stack.append(np.interp(grid_t, times, r['cte'], right=np.nan))
+        if cte_stack:
+            axes[0, 1].plot(grid_t, np.nanmean(cte_stack, axis=0), label=combo)
+
+        # --- averaged linear / angular velocity ---
+        v_stack, w_stack = [], []
+        t_max_cv = max((r['cmd_vel'][-1][0] - r['cmd_vel'][0][0])
+                       for r in runs if r['cmd_vel'])
+        grid_tv = np.linspace(0, t_max_cv, N)
+        for r in runs:
+            cv = r['cmd_vel']
+            if not cv:
+                continue
+            times = np.array([p[0] - cv[0][0] for p in cv])
+            v_stack.append(np.interp(grid_tv, times, [p[1] for p in cv], right=np.nan))
+            w_stack.append(np.interp(grid_tv, times, [p[2] for p in cv], right=np.nan))
+        if v_stack:
+            axes[1, 0].plot(grid_tv, np.nanmean(v_stack, axis=0), label=combo)
+            axes[1, 1].plot(grid_tv, np.nanmean(w_stack, axis=0), label=combo)
+
+    axes[0, 0].set_title('Averaged Trajectories')
+    axes[0, 0].set_xlabel('x (m)')
+    axes[0, 0].set_ylabel('y (m)')
+    axes[0, 0].legend()
+    axes[0, 0].set_aspect('equal')
+
+    axes[0, 1].set_title('Averaged Cross-Track Error')
+    axes[0, 1].set_xlabel('Time (s)')
+    axes[0, 1].set_ylabel('Error (m)')
+    axes[0, 1].legend()
+
+    axes[1, 0].set_title('Averaged Linear Velocity')
+    axes[1, 0].set_xlabel('Time (s)')
+    axes[1, 0].set_ylabel('v (m/s)')
+    axes[1, 0].legend()
+
+    axes[1, 1].set_title('Averaged Angular Velocity')
+    axes[1, 1].set_xlabel('Time (s)')
+    axes[1, 1].set_ylabel('omega (rad/s)')
+    axes[1, 1].legend()
+
+    plt.tight_layout()
+    out_path = os.path.join(run_dir, 'benchmark_averaged.png')
+    plt.savefig(out_path, dpi=150)
+    print(f"Averaged plot saved to {out_path}")
     plt.close(fig)
 
 
@@ -423,6 +594,8 @@ def main():
                         help='Path to rosbag2 directory (can specify multiple)')
     parser.add_argument('--goal_threshold', type=float, default=0.3,
                         help='Distance threshold (m) to consider goal reached (default: 0.3)')
+    parser.add_argument('--average', action='store_true',
+                        help='Group bags by combo name (strip _run_N) and show mean ± std per combo')
     args = parser.parse_args()
 
     all_results = []
@@ -435,15 +608,23 @@ def main():
         run_dir = make_output_dir()
         print(f"\nSaving results to {run_dir}/")
 
-        table_text = format_comparison_table(all_results)
-        print(table_text)
-
-        txt_path = os.path.join(run_dir, 'comparison.txt')
-        with open(txt_path, 'w') as f:
-            f.write(table_text)
-        print(f"Table saved to {txt_path}")
-
-        plot_comparison(all_results, run_dir)
+        if args.average:
+            aggregated = aggregate_by_combo(all_results)
+            avg_text = format_average_table(aggregated)
+            print(avg_text)
+            avg_path = os.path.join(run_dir, 'averages.txt')
+            with open(avg_path, 'w') as f:
+                f.write(avg_text)
+            print(f"Averages saved to {avg_path}")
+            plot_averaged_comparison(all_results, run_dir)
+        else:
+            table_text = format_comparison_table(all_results)
+            print(table_text)
+            txt_path = os.path.join(run_dir, 'comparison.txt')
+            with open(txt_path, 'w') as f:
+                f.write(table_text)
+            print(f"Table saved to {txt_path}")
+            plot_comparison(all_results, run_dir)
     elif len(all_results) == 1:
         print("\nOnly one bag provided. Add --bag <path> for comparison.")
 

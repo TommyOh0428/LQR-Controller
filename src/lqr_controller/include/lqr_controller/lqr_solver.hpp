@@ -1,30 +1,10 @@
 #ifndef LQR_CONTROLLER__LQR_SOLVER_HPP_
 #define LQR_CONTROLLER__LQR_SOLVER_HPP_
 
-#include <vector>
 #include <Eigen/Dense>
 
 namespace lqr_solver
 {
-
-// Solve finite-horizon LQR via backward Riccati recursion.
-// A_refs[t], B_refs[t] are the linearized system at each horizon step t=0..N-1.
-// Q_f is the terminal cost matrix (often same as Q).
-// Returns K_0: the gain to apply at the current timestep (receding horizon).
-//
-// Backward pass:
-//   P_N = Q_f
-//   P_t = Q + A_t^T P_{t+1} A_t - A_t^T P_{t+1} B_t (R + B_t^T P_{t+1} B_t)^{-1} B_t^T P_{t+1} A_t
-//   K_t = (R + B_t^T P_{t+1} B_t)^{-1} B_t^T P_{t+1} A_t
-//
-// Returns false if horizon is empty (caller should use zero command).
-bool solveRecedingHorizonLQR(
-  const std::vector<Eigen::Matrix3d> & A_refs,
-  const std::vector<Eigen::Matrix<double, 3, 2>> & B_refs,
-  const Eigen::Matrix3d & Q,
-  const Eigen::Matrix2d & R,
-  const Eigen::Matrix3d & Q_f,
-  Eigen::Matrix<double, 2, 3> & K_0);
 
 // Build discrete A_d, B_d matrices from unicycle linearization
 // Forward Euler discretization with constant v_ref, omega_ref = 0
@@ -65,9 +45,6 @@ void computeGain(
 Eigen::Vector3d computeBodyFrameError(
   double x, double y, double theta,
   double x_ref, double y_ref, double theta_ref);
-
-// Wrap angle to [-pi, pi]
-double normalizeAngle(double angle);
 
 }  // namespace lqr_solver
 

@@ -247,7 +247,7 @@ def analyze_bag(bag_path, goal_threshold=0.3):
     cmd_vel = extract_cmd_vel(bag_path)
 
     if not trajectory:
-        print("  WARNING: No /amcl_pose messages found")
+        print("  WARNING: No trajectory data extracted (tried /odom+/tf and /amcl_pose)")
         return None
 
     if not plan:
@@ -319,7 +319,6 @@ def plot_comparison(all_results, run_dir):
     for r in all_results:
         traj = r['trajectory']
         if traj:
-            times = [p[0] - traj[0][0] for p in traj]
             xs = [p[1] for p in traj]
             ys = [p[2] for p in traj]
             axes[0, 0].plot(xs, ys, label=r['name'])
@@ -375,16 +374,15 @@ def plot_comparison(all_results, run_dir):
     plt.close(fig)
 
 
-def print_comparison_table(all_results):
-    """Print side-by-side metric comparison."""
-    print(f"\n{'=' * 70}")
-    print("COMPARISON TABLE")
-    print(f"{'=' * 70}")
+def format_comparison_table(all_results):
+    """Build side-by-side metric comparison as a string."""
+    lines = [f"\n{'=' * 70}", "COMPARISON TABLE", f"{'=' * 70}"]
+
     header = f"{'Metric':<25}"
     for r in all_results:
         header += f"  {r['name']:<20}"
-    print(header)
-    print("-" * 70)
+    lines.append(header)
+    lines.append("-" * 70)
 
     metrics = [
         ('Mean CTE (m)', 'mean_cte', '.4f'),
@@ -399,22 +397,24 @@ def print_comparison_table(all_results):
         row = f"{label:<25}"
         for r in all_results:
             row += f"  {format(r[key], fmt):<20}"
-        print(row)
+        lines.append(row)
 
     row = f"{'Reached goal':<25}"
     for r in all_results:
         row += f"  {'Yes' if r['succeeded'] else 'No':<20}"
-    print(row)
+    lines.append(row)
 
     row = f"{'Distance to goal (m)':<25}"
     for r in all_results:
         row += f"  {format(r['dist_to_goal'], '.3f'):<20}"
-    print(row)
+    lines.append(row)
 
     row = f"{'Final position':<25}"
     for r in all_results:
         row += f"  x={r['final_x']:.3f} y={r['final_y']:.3f}        "
-    print(row)
+    lines.append(row)
+
+    return "\n".join(lines)
 
 
 def main():
@@ -435,14 +435,8 @@ def main():
         run_dir = make_output_dir()
         print(f"\nSaving results to {run_dir}/")
 
-        import io, sys
-        buf = io.StringIO()
-        old_stdout = sys.stdout
-        sys.stdout = buf
-        print_comparison_table(all_results)
-        sys.stdout = old_stdout
-        table_text = buf.getvalue()
-        print(table_text, end='')
+        table_text = format_comparison_table(all_results)
+        print(table_text)
 
         txt_path = os.path.join(run_dir, 'comparison.txt')
         with open(txt_path, 'w') as f:

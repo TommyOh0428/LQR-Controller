@@ -132,7 +132,7 @@ def purge_nav2_processes(wait_secs=5):
     # Also reset the ROS 2 daemon so stale node listings are cleared
     try:
         subprocess.run(['ros2', 'daemon', 'stop'], capture_output=True, timeout=10)
-    except (subprocess.TimeoutExpired, Exception):
+    except Exception:
         pass
     time.sleep(wait_secs)
 
@@ -187,11 +187,13 @@ def run_single(combo_name, run_idx, params_file, nav_timeout):
 
     procs = []
 
-    def start(name, cmd, use_log=True):
-        kw = dict(start_new_session=True)
-        if use_log:
-            kw.update(stdout=log_file, stderr=subprocess.STDOUT)
-        p = subprocess.Popen(cmd, **kw)
+    def start(name, cmd):
+        p = subprocess.Popen(
+            cmd,
+            start_new_session=True,
+            stdout=log_file,
+            stderr=subprocess.STDOUT,
+        )
         procs.append((name, p))
         return p
 

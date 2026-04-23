@@ -11,7 +11,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Space+Mono:wght@400;700&family=Syne:wght@500;600;700;800&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="assets/css/base.css" />
@@ -63,7 +63,8 @@
       <section id="hero">
         <div class="container">
           <div class="course-tag fade-up">
-            CMPT 720 · Spring 2026 · Simon Fraser University
+            CMPT 419 / 720 · Robotic Autonomy: Algorithms and Computation <br />
+            Spring 2026 · Simon Fraser University
           </div>
 
           <h1 class="fade-up">
@@ -112,22 +113,6 @@
               </svg>
               Report (Incoming)
             </a>
-            <a
-              class="btn btn-outline"
-              href="../docs/poster.pdf"
-              target="_blank"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <rect x="3" y="3" width="18" height="18" rx="2" />
-                <path d="M3 9h18M9 21V9" />
-              </svg>
-              Poster PDF
-            </a>
             <a class="btn btn-outline" href="../docs/slide.pdf" target="_blank">
               <svg
                 viewBox="0 0 24 24"
@@ -159,19 +144,19 @@
           <div class="stat-grid" style="margin-top: 56px">
             <div class="stat-card">
               <span class="stat-num">100%</span>
-              <span class="stat-label">Success Rate (6 runs)</span>
+              <span class="stat-label">Success Rate (6 Configs)</span>
             </div>
             <div class="stat-card">
-              <span class="stat-num">67.9s</span>
-              <span class="stat-label">Fastest Time-to-Goal</span>
+              <span class="stat-num">22.93s</span>
+              <span class="stat-label">Fastest Avg Time-to-Goal</span>
             </div>
             <div class="stat-card">
-              <span class="stat-num">0.083m</span>
-              <span class="stat-label">Mean CTE (LQR+NavFn)</span>
+              <span class="stat-num">0.0120m</span>
+              <span class="stat-label">Best Avg Mean CTE</span>
             </div>
             <div class="stat-card">
-              <span class="stat-num">20 Hz</span>
-              <span class="stat-label">Control Rate</span>
+              <span class="stat-num">0.0860</span>
+              <span class="stat-label">Best Avg dv/dt</span>
             </div>
           </div>
         </div>
@@ -570,74 +555,73 @@
               <tbody>
                 <tr class="row-lqr">
                   <td class="td-config">LQR + NavFn</td>
-                  <td>0.083 m</td>
-                  <td>0.363 m</td>
-                  <td>0.072 m</td>
-                  <td class="td-best">0.110</td>
-                  <td>0.939</td>
-                  <td class="td-best">67.9 s</td>
-                  <td class="td-check">✓</td>
+                  <td>0.0514 m</td>
+                  <td>0.2334 m</td>
+                  <td>0.0661 m</td>
+                  <td>0.1871</td>
+                  <td>0.9456</td>
+                  <td>25.52 s</td>
+                  <td class="td-check">3/3</td>
                 </tr>
                 <tr class="row-lqr">
                   <td class="td-config">LQR + Smac 2D</td>
-                  <td>0.061 m</td>
-                  <td>0.310 m</td>
-                  <td class="td-best">0.024 m</td>
-                  <td>—</td>
-                  <td>—</td>
-                  <td>334.6 s</td>
-                  <td class="td-check">✓</td>
+                  <td>0.0538 m</td>
+                  <td>0.2051 m</td>
+                  <td>0.0590 m</td>
+                  <td>0.1825</td>
+                  <td>0.4781</td>
+                  <td>25.51 s</td>
+                  <td class="td-check">3/3</td>
                 </tr>
                 <tr>
                   <td class="td-config">DWB + NavFn</td>
-                  <td>0.042 m</td>
-                  <td class="td-best">0.131 m</td>
-                  <td>0.035 m</td>
-                  <td>0.219</td>
-                  <td class="td-best">0.876</td>
-                  <td>185.1 s</td>
-                  <td class="td-check">✓</td>
+                  <td>0.0489 m</td>
+                  <td>0.2568 m</td>
+                  <td>0.0772 m</td>
+                  <td>0.2998</td>
+                  <td>1.1579</td>
+                  <td>23.92 s</td>
+                  <td class="td-check">3/3</td>
                 </tr>
                 <tr>
                   <td class="td-config">DWB + Smac 2D</td>
-                  <td class="td-best">0.042 m</td>
-                  <td>0.199 m</td>
-                  <td>0.042 m</td>
-                  <td>0.277</td>
-                  <td>0.886</td>
-                  <td>66.4 s</td>
-                  <td class="td-check">✓</td>
+                  <td>0.0475 m</td>
+                  <td>0.1990 m</td>
+                  <td>0.0586 m</td>
+                  <td>0.3110</td>
+                  <td>1.0616</td>
+                  <td class="td-best">22.93 s</td>
+                  <td class="td-check">3/3</td>
                 </tr>
                 <tr>
                   <td class="td-config">MPPI + NavFn</td>
-                  <td>0.146 m</td>
-                  <td>0.270 m</td>
-                  <td>0.121 m</td>
-                  <td>1.088</td>
-                  <td>2.683</td>
-                  <td>197.2 s</td>
-                  <td class="td-check">✓</td>
+                  <td class="td-best">0.0120 m</td>
+                  <td class="td-best">0.0548 m</td>
+                  <td class="td-best">0.0112 m</td>
+                  <td class="td-best">0.0860</td>
+                  <td class="td-best">0.1689</td>
+                  <td>37.65 s</td>
+                  <td class="td-check">3/3</td>
                 </tr>
                 <tr>
                   <td class="td-config">MPPI + Smac 2D</td>
-                  <td>0.060 m</td>
-                  <td>0.179 m</td>
-                  <td>0.030 m</td>
-                  <td>1.029</td>
-                  <td>—</td>
-                  <td>159.1 s</td>
-                  <td class="td-check">✓</td>
+                  <td>0.0807 m</td>
+                  <td>0.2846 m</td>
+                  <td>0.0772 m</td>
+                  <td>0.0965</td>
+                  <td>0.2667</td>
+                  <td>36.48 s</td>
+                  <td class="td-check">3/3</td>
                 </tr>
               </tbody>
             </table>
           </div>
           <p style="font-size: 0.78rem; color: var(--muted)">
-            Orange rows = LQR configurations. Bold = per-column best. Dashes =
-            anomalous smoothness values due to cmd_vel timestamp artifacts
-            excluded from comparison.
+            Orange rows = LQR configurations. Bold = per-column best using the
+            averaged successful runs. Goal reports successful runs out of 3.
           </p>
 
-          <h3 style="margin-top: 40px">5-Run LQR Reliability Validation</h3>
+          <!-- <h3 style="margin-top: 40px">5-Run LQR Reliability Validation</h3>
           <div class="table-wrap">
             <table>
               <thead>
@@ -721,19 +705,19 @@
           <p style="font-size: 0.78rem; color: var(--muted)">
             *Run 3 bag recording stopped late; actual navigation time was
             comparable to other runs.
-          </p>
+          </p> -->
 
           <!-- FIGURES -->
           <h3 style="margin-top: 48px">Benchmark Plots</h3>
 
           <div class="figure-block">
             <img
-              src="assets/benchmark_6combo.png"
+              src="assets/image.png"
               alt="6-combo benchmark comparison: trajectory overlay, CTE over time, linear and angular velocity commands for all 6 controller-planner configurations"
             />
             <p class="figure-caption">
-              <strong>Fig. 1:</strong> 6-combo benchmark comparison. Top-left:
-              robot trajectory overlays with planned paths. Top-right:
+              <strong>Figure. 1:</strong> 6-combo benchmark comparison.
+              Top-left: robot trajectory overlays with planned paths. Top-right:
               cross-track error over time. Bottom-left: linear velocity
               commands. Bottom-right: angular velocity commands. LQR+NavFn
               (blue) demonstrates the cleanest, fastest trajectory. MPPI
@@ -741,7 +725,7 @@
             </p>
           </div>
 
-          <div class="figure-block">
+          <!-- <div class="figure-block">
             <img
               src="assets/benchmark_5run.png"
               alt="5-run LQR reliability validation: trajectory, CTE, velocity commands across 5 repeated trials"
@@ -753,7 +737,7 @@
               repeatable. Run 3 (green, extended time axis) reflects a late
               bag-stop, not slow navigation.
             </p>
-          </div>
+          </div> -->
         </div>
       </section>
 
@@ -772,7 +756,7 @@
           <div class="video-grid">
             <div class="video-card">
               <video controls muted preload="metadata">
-                <source src="assets/lqr-run1.mp4" type="video/mp4" />
+                <source src="videos/LQR+NavFn.mp4" type="video/mp4" />
               </video>
               <div class="video-label">
                 <strong>LQR + NavFn</strong> — Run 1 (67.9 s)
@@ -780,7 +764,7 @@
             </div>
             <div class="video-card">
               <video controls muted preload="metadata">
-                <source src="assets/lqr-run2.mp4" type="video/mp4" />
+                <source src="videos/LQR+Smac.mp4" type="video/mp4" />
               </video>
               <div class="video-label">
                 <strong>LQR + Smac 2D</strong> — Run 2
@@ -788,7 +772,7 @@
             </div>
             <div class="video-card">
               <video controls muted preload="metadata">
-                <source src="assets/lqr-run3.mp4" type="video/mp4" />
+                <source src="videos/DWB+NavFn.mp4" type="video/mp4" />
               </video>
               <div class="video-label">
                 <strong>DWB + NavFn</strong> — Run 3
@@ -796,7 +780,7 @@
             </div>
             <div class="video-card">
               <video controls muted preload="metadata">
-                <source src="assets/lqr-run4.mp4" type="video/mp4" />
+                <source src="videos/DWB+Smac.mp4" type="video/mp4" />
               </video>
               <div class="video-label">
                 <strong>DWB + Smac 2D</strong> — Run 4 (66.4 s)
@@ -804,7 +788,7 @@
             </div>
             <div class="video-card">
               <video controls muted preload="metadata">
-                <source src="assets/lqr-run5.mp4" type="video/mp4" />
+                <source src="videos/MPPI+NavFn.mp4" type="video/mp4" />
               </video>
               <div class="video-label">
                 <strong>MPPI + NavFn</strong> — Run 5
@@ -812,7 +796,7 @@
             </div>
             <div class="video-card">
               <video controls muted preload="metadata">
-                <source src="assets/lqr-run6.mp4" type="video/mp4" />
+                <source src="videos/MPPI+Smac.mp4" type="video/mp4" />
               </video>
               <div class="video-label">
                 <strong>MPPI + Smac 2D</strong> — Run 6

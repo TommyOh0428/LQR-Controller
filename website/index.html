@@ -4,6 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>LQR Nav2 Controller — CMPT 720 SFU</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="assets/favicon.ico" />
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -12,6 +14,8 @@
       href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap"
       rel="stylesheet"
     />
+    <link rel="stylesheet" href="assets/css/base.css" />
+    <link rel="stylesheet" href="assets/css/components.css" />
 
     <!-- MathJax -->
     <script>
@@ -35,882 +39,6 @@
       src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"
       async
     ></script>
-
-    <style>
-      :root {
-        --bg: #f7f6f3;
-        --bg2: #ffffff;
-        --bg3: #f0efe9;
-        --border: #e0ddd5;
-        --text: #1a1915;
-        --muted: #6b6860;
-        --accent: #c95f1a;
-        --accent2: #1a6fcc;
-        --green: #1e8a4a;
-        --mono: "DM Mono", monospace;
-        --serif: "DM Serif Display", serif;
-        --sans: "DM Sans", sans-serif;
-      }
-
-      *,
-      *::before,
-      *::after {
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
-      }
-
-      html {
-        scroll-behavior: smooth;
-      }
-
-      body {
-        background: var(--bg);
-        color: var(--text);
-        font-family: var(--sans);
-        font-size: 16px;
-        line-height: 1.7;
-        overflow-x: hidden;
-      }
-
-      /* ── NOISE OVERLAY ── */
-      body::before {
-        content: "";
-        position: fixed;
-        inset: 0;
-        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-        pointer-events: none;
-        z-index: 9999;
-        opacity: 0.15;
-      }
-
-      /* ── LAYOUT ── */
-      .container {
-        max-width: 860px;
-        margin: 0 auto;
-        padding: 0 24px;
-      }
-      .container-wide {
-        max-width: 1080px;
-        margin: 0 auto;
-        padding: 0 24px;
-      }
-
-      section {
-        padding: 72px 0;
-        border-bottom: 1px solid var(--border);
-      }
-      section:nth-child(even) {
-        background: #ffffff;
-      }
-      section:nth-child(odd) {
-        background: var(--bg);
-      }
-      section:last-of-type {
-        border-bottom: none;
-      }
-
-      /* ── HERO ── */
-      #hero {
-        padding: 100px 0 80px;
-        position: relative;
-        background: radial-gradient(
-          ellipse 80% 60% at 50% 0%,
-          rgba(201, 95, 26, 0.06) 0%,
-          transparent 70%
-        );
-      }
-
-      .course-tag {
-        display: inline-block;
-        font-family: var(--mono);
-        font-size: 11px;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        color: var(--accent);
-        border: 1px solid rgba(232, 121, 58, 0.4);
-        padding: 4px 12px;
-        border-radius: 2px;
-        margin-bottom: 28px;
-      }
-
-      h1 {
-        font-family: var(--serif);
-        font-size: clamp(2.2rem, 5vw, 3.4rem);
-        line-height: 1.15;
-        color: #1a1915;
-        margin-bottom: 20px;
-        max-width: 780px;
-      }
-
-      h1 em {
-        font-style: italic;
-        color: var(--accent);
-      }
-
-      .subtitle {
-        font-size: 1.05rem;
-        color: var(--muted);
-        margin-bottom: 36px;
-        font-weight: 300;
-      }
-
-      /* Authors */
-      .authors {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px 24px;
-        margin-bottom: 40px;
-        font-size: 0.95rem;
-      }
-      .author {
-        color: var(--text);
-        font-weight: 500;
-      }
-      .author span {
-        color: var(--muted);
-        font-weight: 300;
-        font-size: 0.82rem;
-        display: block;
-      }
-
-      /* Link buttons */
-      .links {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 12px;
-      }
-
-      .btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 10px 20px;
-        border-radius: 4px;
-        font-family: var(--mono);
-        font-size: 0.82rem;
-        letter-spacing: 0.04em;
-        text-decoration: none;
-        transition: all 0.2s ease;
-        border: 1px solid;
-      }
-
-      .btn-primary {
-        background: var(--accent);
-        border-color: var(--accent);
-        color: #fff;
-      }
-      .btn-primary:hover {
-        background: #a84d12;
-        border-color: #a84d12;
-        transform: translateY(-1px);
-      }
-
-      .btn-outline {
-        background: transparent;
-        border-color: var(--border);
-        color: var(--muted);
-      }
-      .btn-outline:hover {
-        border-color: var(--accent);
-        color: var(--accent);
-        transform: translateY(-1px);
-      }
-
-      .btn-dim {
-        background: transparent;
-        border-color: rgba(0, 0, 0, 0.12);
-        color: rgba(0, 0, 0, 0.28);
-        cursor: default;
-        pointer-events: none;
-      }
-
-      .btn svg {
-        width: 16px;
-        height: 16px;
-        flex-shrink: 0;
-      }
-
-      /* ── SECTION HEADINGS ── */
-      h2 {
-        font-family: var(--serif);
-        font-size: 1.9rem;
-        color: #1a1915;
-        margin-bottom: 8px;
-      }
-      .section-label {
-        font-family: var(--mono);
-        font-size: 10px;
-        letter-spacing: 0.15em;
-        text-transform: uppercase;
-        color: var(--accent);
-        margin-bottom: 16px;
-        display: block;
-      }
-
-      h3 {
-        font-family: var(--sans);
-        font-size: 1.1rem;
-        font-weight: 600;
-        color: #1a1915;
-        margin: 32px 0 10px;
-      }
-
-      p {
-        margin-bottom: 14px;
-        color: var(--text);
-        font-weight: 300;
-      }
-      p:last-child {
-        margin-bottom: 0;
-      }
-
-      /* ── ABSTRACT ── */
-      #abstract .abstract-box {
-        border-left: 3px solid var(--accent);
-        padding: 24px 28px;
-        background: var(--bg2);
-        border-radius: 0 6px 6px 0;
-        font-size: 1rem;
-        line-height: 1.8;
-      }
-
-      /* ── STAT CARDS ── */
-      .stat-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-        gap: 16px;
-        margin: 40px 0;
-      }
-
-      .stat-card {
-        background: var(--bg2);
-        border: 1px solid var(--border);
-        border-radius: 6px;
-        padding: 20px;
-        text-align: center;
-        transition: border-color 0.2s;
-      }
-      .stat-card:hover {
-        border-color: rgba(201, 95, 26, 0.4);
-      }
-
-      .stat-num {
-        font-family: var(--mono);
-        font-size: 1.9rem;
-        font-weight: 500;
-        color: var(--accent);
-        display: block;
-        line-height: 1;
-        margin-bottom: 6px;
-      }
-      .stat-label {
-        font-size: 0.78rem;
-        color: var(--muted);
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-      }
-
-      /* ── ARCHITECTURE ── */
-      #architecture .arch-box {
-        background: var(--bg2);
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        padding: 32px;
-        margin-top: 32px;
-        overflow-x: auto;
-      }
-
-      .arch-flow {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 0;
-        font-family: var(--mono);
-        font-size: 0.85rem;
-      }
-
-      .arch-node {
-        background: var(--bg3);
-        border: 1px solid var(--border);
-        border-radius: 6px;
-        padding: 12px 28px;
-        color: var(--text);
-        white-space: nowrap;
-        position: relative;
-        transition: border-color 0.2s;
-      }
-      .arch-node:hover {
-        border-color: var(--accent2);
-      }
-      .arch-node.highlight {
-        border-color: var(--accent);
-        color: var(--accent);
-        background: rgba(201, 95, 26, 0.06);
-      }
-
-      .arch-arrow {
-        color: var(--muted);
-        font-size: 0.75rem;
-        letter-spacing: 0.1em;
-        padding: 4px 0;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 0;
-      }
-      .arch-arrow .label {
-        font-size: 0.7rem;
-        color: var(--accent2);
-        font-style: italic;
-      }
-
-      .arch-steps {
-        background: var(--bg3);
-        border: 1px solid var(--accent);
-        border-radius: 8px;
-        padding: 16px 24px;
-        width: 100%;
-        max-width: 520px;
-      }
-      .arch-steps ol {
-        list-style: decimal;
-        padding-left: 20px;
-        color: var(--muted);
-        font-size: 0.82rem;
-        line-height: 2;
-      }
-      .arch-steps ol li span {
-        color: var(--text);
-      }
-
-      .two-col {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 24px;
-        margin-top: 32px;
-      }
-      @media (max-width: 640px) {
-        .two-col {
-          grid-template-columns: 1fr;
-        }
-      }
-
-      .info-card {
-        background: var(--bg2);
-        border: 1px solid var(--border);
-        border-radius: 6px;
-        padding: 20px;
-      }
-      .info-card h4 {
-        font-family: var(--mono);
-        font-size: 0.78rem;
-        color: var(--accent2);
-        text-transform: uppercase;
-        letter-spacing: 0.1em;
-        margin-bottom: 12px;
-      }
-      .info-card ul {
-        list-style: none;
-        font-size: 0.88rem;
-        color: var(--muted);
-        line-height: 1.9;
-      }
-      .info-card ul li::before {
-        content: "→ ";
-        color: var(--accent);
-      }
-      #algorithm .eq-block {
-        background: var(--bg2);
-        border: 1px solid var(--border);
-        border-radius: 6px;
-        padding: 24px;
-        margin: 20px 0;
-        overflow-x: auto;
-      }
-      .eq-label {
-        font-family: var(--mono);
-        font-size: 0.72rem;
-        color: var(--accent);
-        text-transform: uppercase;
-        letter-spacing: 0.12em;
-        margin-bottom: 12px;
-        display: block;
-      }
-
-      .matrix-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 20px;
-        margin: 20px 0;
-      }
-      @media (max-width: 600px) {
-        .matrix-grid {
-          grid-template-columns: 1fr;
-        }
-      }
-
-      /* ── BUGS ── */
-      .bug-list {
-        margin-top: 24px;
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-      }
-
-      .bug-card {
-        background: var(--bg2);
-        border: 1px solid var(--border);
-        border-radius: 6px;
-        padding: 20px 24px;
-        border-left: 3px solid;
-        transition: transform 0.15s;
-      }
-      .bug-card:hover {
-        transform: translateX(3px);
-      }
-      .bug-card.critical {
-        border-left-color: #b42828;
-      }
-      .bug-card.moderate {
-        border-left-color: #9a7200;
-      }
-      .bug-card.minor {
-        border-left-color: var(--accent2);
-      }
-
-      .bug-header {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        margin-bottom: 8px;
-      }
-      .bug-num {
-        font-family: var(--mono);
-        font-size: 0.72rem;
-        padding: 2px 8px;
-        border-radius: 3px;
-        font-weight: 500;
-      }
-      .critical .bug-num {
-        background: rgba(180, 40, 40, 0.1);
-        color: #b42828;
-      }
-      .moderate .bug-num {
-        background: rgba(160, 120, 10, 0.12);
-        color: #9a7200;
-      }
-      .minor .bug-num {
-        background: rgba(26, 111, 204, 0.1);
-        color: var(--accent2);
-      }
-
-      .bug-title {
-        font-weight: 600;
-        font-size: 0.95rem;
-        color: #1a1915;
-      }
-
-      .bug-body {
-        font-size: 0.88rem;
-        color: var(--muted);
-      }
-      .bug-fix {
-        margin-top: 10px;
-        font-size: 0.85rem;
-        color: var(--green);
-        font-family: var(--mono);
-        background: rgba(30, 138, 74, 0.06);
-        border-radius: 4px;
-        padding: 8px 12px;
-      }
-
-      /* ── RESULTS TABLE ── */
-      .results-section {
-        margin-top: 36px;
-      }
-
-      .table-wrap {
-        overflow-x: auto;
-        margin: 24px 0;
-      }
-
-      table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 0.88rem;
-      }
-      thead tr {
-        background: #f0efe9;
-        border-bottom: 1px solid var(--accent);
-      }
-      thead th {
-        font-family: var(--mono);
-        font-size: 0.72rem;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        color: var(--muted);
-        padding: 12px 16px;
-        text-align: left;
-        white-space: nowrap;
-      }
-      tbody tr {
-        border-bottom: 1px solid var(--border);
-        transition: background 0.15s;
-      }
-      tbody tr:hover {
-        background: rgba(0, 0, 0, 0.025);
-      }
-      tbody td {
-        padding: 12px 16px;
-        color: var(--text);
-        font-size: 0.88rem;
-        white-space: nowrap;
-      }
-      .td-config {
-        font-family: var(--mono);
-        font-size: 0.8rem;
-        color: var(--accent2);
-      }
-      .td-best {
-        color: var(--accent);
-        font-weight: 600;
-      }
-      .td-check {
-        color: var(--green);
-      }
-
-      .row-lqr {
-        background: rgba(201, 95, 26, 0.04);
-      }
-
-      /* ── FIGURES ── */
-      .figure-block {
-        margin: 32px 0;
-      }
-      .figure-block img {
-        width: 100%;
-        border-radius: 8px;
-        border: 1px solid var(--border);
-        display: block;
-      }
-      .figure-caption {
-        font-size: 0.82rem;
-        color: var(--muted);
-        text-align: center;
-        margin-top: 12px;
-        font-style: italic;
-      }
-
-      /* ── VIDEOS ── */
-      .video-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-        gap: 16px;
-        margin-top: 32px;
-      }
-
-      .video-card {
-        background: var(--bg2);
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        overflow: hidden;
-        transition: border-color 0.2s;
-      }
-      .video-card:hover {
-        border-color: rgba(201, 95, 26, 0.4);
-      }
-
-      .video-card video {
-        width: 100%;
-        display: block;
-        aspect-ratio: 16/9;
-        object-fit: cover;
-        background: #000;
-      }
-
-      .video-label {
-        padding: 10px 14px;
-        font-family: var(--mono);
-        font-size: 0.76rem;
-        color: var(--muted);
-      }
-      .video-label strong {
-        color: var(--text);
-      }
-
-      /* ── DISCUSSION ── */
-      .insight-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-        gap: 16px;
-        margin-top: 28px;
-      }
-
-      .insight-card {
-        background: var(--bg2);
-        border: 1px solid var(--border);
-        border-radius: 6px;
-        padding: 20px;
-      }
-      .insight-icon {
-        font-size: 1.4rem;
-        margin-bottom: 10px;
-        display: block;
-      }
-      .insight-card h4 {
-        font-size: 0.9rem;
-        font-weight: 600;
-        color: #1a1915;
-        margin-bottom: 8px;
-      }
-      .insight-card p {
-        font-size: 0.83rem;
-        color: var(--muted);
-        line-height: 1.6;
-      }
-
-      /* ── TEAM ── */
-      .team-table {
-        margin-top: 24px;
-      }
-      .team-row {
-        display: flex;
-        gap: 16px;
-        border-bottom: 1px solid var(--border);
-        padding: 14px 0;
-        align-items: flex-start;
-      }
-      .team-row:last-child {
-        border-bottom: none;
-      }
-      .team-name {
-        font-weight: 600;
-        font-size: 0.92rem;
-        color: #1a1915;
-        min-width: 150px;
-        flex-shrink: 0;
-      }
-      .team-tasks {
-        font-size: 0.85rem;
-        color: var(--muted);
-        line-height: 1.7;
-      }
-
-      /* ── TUNING ── */
-      .tuning-timeline {
-        margin-top: 28px;
-        position: relative;
-        padding-left: 24px;
-      }
-      .tuning-timeline::before {
-        content: "";
-        position: absolute;
-        left: 6px;
-        top: 0;
-        bottom: 0;
-        width: 2px;
-        background: linear-gradient(to bottom, var(--accent), transparent);
-      }
-      .tuning-entry {
-        position: relative;
-        margin-bottom: 28px;
-      }
-      .tuning-entry::before {
-        content: "";
-        position: absolute;
-        left: -21px;
-        top: 6px;
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        background: var(--accent);
-        border: 2px solid var(--bg);
-      }
-      .tuning-date {
-        font-family: var(--mono);
-        font-size: 0.72rem;
-        color: var(--accent);
-        margin-bottom: 4px;
-      }
-      .tuning-title {
-        font-weight: 600;
-        color: #1a1915;
-        margin-bottom: 6px;
-        font-size: 0.95rem;
-      }
-      .tuning-body {
-        font-size: 0.85rem;
-        color: var(--muted);
-        line-height: 1.7;
-      }
-
-      /* ── CODE BLOCK ── */
-      pre,
-      code {
-        font-family: var(--mono);
-        font-size: 0.82rem;
-      }
-      pre {
-        background: #eeecea;
-        border: 1px solid var(--border);
-        border-radius: 6px;
-        padding: 20px;
-        overflow-x: auto;
-        color: #1a1915;
-        line-height: 1.6;
-        margin: 16px 0;
-      }
-      code {
-        background: rgba(0, 0, 0, 0.06);
-        padding: 2px 6px;
-        border-radius: 3px;
-        font-size: 0.85em;
-      }
-
-      /* ── BIBTEX ── */
-      .bibtex-box {
-        background: var(--bg2);
-        border: 1px solid var(--border);
-        border-radius: 6px;
-        padding: 24px;
-        margin-top: 24px;
-        position: relative;
-      }
-
-      .copy-btn {
-        position: absolute;
-        top: 12px;
-        right: 12px;
-        background: var(--bg3);
-        border: 1px solid var(--border);
-        color: var(--muted);
-        font-family: var(--mono);
-        font-size: 0.7rem;
-        padding: 4px 10px;
-        border-radius: 3px;
-        cursor: pointer;
-        transition: all 0.2s;
-      }
-
-      /* ── FOOTER ── */
-      footer {
-        padding: 48px 0;
-        text-align: center;
-        font-size: 0.82rem;
-        color: var(--muted);
-      }
-      footer a {
-        color: var(--accent);
-        text-decoration: none;
-      }
-
-      /* ── NAV ── */
-      nav {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        z-index: 100;
-        background: rgba(247, 246, 243, 0.92);
-        backdrop-filter: blur(12px);
-        border-bottom: 1px solid var(--border);
-        padding: 0 24px;
-      }
-      .nav-inner {
-        max-width: 1080px;
-        margin: 0 auto;
-        display: flex;
-        align-items: center;
-        height: 52px;
-        gap: 32px;
-      }
-      .nav-logo {
-        font-family: var(--mono);
-        font-size: 0.8rem;
-        color: var(--accent);
-        text-decoration: none;
-        letter-spacing: 0.08em;
-        flex-shrink: 0;
-      }
-      .nav-links {
-        display: flex;
-        gap: 24px;
-        list-style: none;
-      }
-      .nav-links a {
-        font-size: 0.82rem;
-        color: var(--muted);
-        text-decoration: none;
-        transition: color 0.2s;
-      }
-      .nav-links a:hover {
-        color: var(--text);
-      }
-
-      .page-start {
-        padding-top: 52px;
-      }
-
-      /* ── BADGE ── */
-      .badge {
-        display: inline-block;
-        font-family: var(--mono);
-        font-size: 0.7rem;
-        padding: 2px 8px;
-        border-radius: 3px;
-        margin-left: 8px;
-        vertical-align: middle;
-      }
-      .badge-green {
-        background: rgba(30, 138, 74, 0.12);
-        color: var(--green);
-      }
-      .badge-orange {
-        background: rgba(232, 121, 58, 0.15);
-        color: var(--accent);
-      }
-      .badge-blue {
-        background: rgba(26, 111, 204, 0.1);
-        color: var(--accent2);
-      }
-
-      /* ── ANIMATIONS ── */
-      @keyframes fadeUp {
-        from {
-          opacity: 0;
-          transform: translateY(18px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-      .fade-up {
-        animation: fadeUp 0.6s ease both;
-      }
-      .fade-up:nth-child(2) {
-        animation-delay: 0.1s;
-      }
-      .fade-up:nth-child(3) {
-        animation-delay: 0.2s;
-      }
-      .fade-up:nth-child(4) {
-        animation-delay: 0.3s;
-      }
-
-      @media (max-width: 640px) {
-        .nav-links {
-          display: none;
-        }
-        h1 {
-          font-size: 2rem;
-        }
-        .authors {
-          gap: 6px 16px;
-        }
-      }
-    </style>
   </head>
   <body>
     <!-- ── NAV ── -->
@@ -923,8 +51,9 @@
           <li><a href="#algorithm">Algorithm</a></li>
           <li><a href="#implementation">Bugs & Fixes</a></li>
           <li><a href="#results">Results</a></li>
-          <li><a href="#videos">Videos</a></li>
-          <li><a href="#discussion">Discussion</a></li>
+          <li><a href="#videos">Simulation</a></li>
+          <li><a href="#discussion">Analysis & Limitation</a></li>
+          <li><a href="#team">Contribution</a></li>
         </ul>
       </div>
     </nav>
@@ -1287,147 +416,107 @@
       <!-- ── IMPLEMENTATION / BUGS ── -->
       <section id="implementation">
         <div class="container">
-          <span class="section-label">04 — Implementation</span>
-          <h2>Six Bugs Before Tuning</h2>
+          <span class="section-label">04 — Challenges</span>
+          <h2>Bug fixing during implementation</h2>
 
           <p>
-            The initial implementation had strong path-tracking (mean CTE ~0.10
-            m) but the robot <strong>never reached the goal</strong>. All six
-            root causes were code defects — the original Q/R gains were never
-            the problem. Each bug is documented from the tuning log.
+            These are the bugs that we have successfully identified and fixed
+            during our implementation process. Each of these bugs was critical
+            to resolve for the controller to function correctly and reach the
+            goal.
           </p>
 
           <div class="bug-list">
             <div class="bug-card critical">
               <div class="bug-header">
                 <span class="bug-num">BUG 1 · CRITICAL</span>
-                <span class="bug-title">Backward Path Snap</span>
+                <span class="bug-title"
+                  >LQR: Incorrect Reference Heading from NavFn</span
+                >
               </div>
               <p class="bug-body">
-                <code>findClosestPoint()</code> scanned the <em>entire</em> path
-                every cycle. Near the goal, the curved path looped back toward
-                earlier segments, causing the closest-point index to snap
-                backward. The robot would then drive <em>away</em> from the goal
-                to re-track old waypoints, creating an infinite loop.
+                The initial implementation read <code>theta_ref</code> directly
+                from the stored quarternion of each waypoint, so the reference
+                heading was always 0° regardless of the robot's actual position
+                along the path. This caused the body-frame error decomposition
+                to project error into a fixed global direction rather than the
+                local path frame, consistently producing e_long > 0 and driving
+                the longitudinal error term to dominate.
               </p>
               <div class="bug-fix">
-                Fix: introduced <code>last_closest_idx_</code> — search now
-                starts from previous index (±2 step lookback for localization
-                jitter). Reset to 0 on each <code>setPlan()</code>.
-              </div>
-            </div>
-
-            <div class="bug-card critical">
-              <div class="bug-header">
-                <span class="bug-num">BUG 2 · CRITICAL</span>
-                <span class="bug-title">Goal Overshoot &amp; Oscillation</span>
-              </div>
-              <p class="bug-body">
-                At constant $v_{\text{ref}} = 0.2$ m/s, the robot overshot the
-                0.25 m goal tolerance, turned around, overshot again, and
-                oscillated indefinitely around the goal without ever triggering
-                the goal checker.
-              </p>
-              <div class="bug-fix">
-                Fix: added <code>goal_slowdown_radius: 1.0</code> m. When
-                remaining path length &lt; 1.0 m, reference speed scales
-                linearly to zero with a 5% floor to prevent stalling before the
-                goal checker triggers.
-              </div>
-            </div>
-
-            <div class="bug-card critical">
-              <div class="bug-header">
-                <span class="bug-num">BUG 3 · CRITICAL</span>
-                <span class="bug-title">Goal Checker Never Called</span>
-              </div>
-              <p class="bug-body">
-                The <code>goal_checker</code> parameter passed to
-                <code>computeVelocityCommands()</code> was silently discarded.
-                The controller kept commanding non-zero velocities even when
-                Nav2 had internally satisfied the goal condition.
-              </p>
-              <div class="bug-fix">
-                Fix: added <code>goal_checker-&gt;isGoalReached()</code> check
-                at the top of each control cycle. Returns zero velocity
-                immediately when triggered.
+                The fix was to compute <code>theta_ref</code> geometrically
+                rather than from the stored quaternion:
+                <code>theta_ref = atan2(next.y - ref.y, next.x - ref.x)</code>,
+                using the direction between adjacent waypoints on the path. This
+                made the body-frame decomposition correctly relative to the path
+                tangent and restored normal controller behavior.
               </div>
             </div>
 
             <div class="bug-card moderate">
               <div class="bug-header">
-                <span class="bug-num">BUG 4 · MODERATE</span>
-                <span class="bug-title">Wrong Path Heading from NavFn</span>
+                <span class="bug-num">BUG 2 · MODERATE</span>
+                <span class="bug-title">MPPI: Local Costmap Too Small</span>
               </div>
               <p class="bug-body">
-                NavFn outputs path poses with identity quaternion $(0,0,0,1)$ —
-                yaw = 0 everywhere. With $\theta_{\text{ref}} = 0$ at all
-                waypoints, the body-frame error was computed in a fixed global
-                frame instead of the local path frame, corrupting both
-                $e_{\text{long}}$ and $e_{\text{lat}}$.
+                MPPI's PathHandler transforms the global path into the local
+                costmap frame and discards any waypoints that fall outside it
+                before computing rollouts. The initial local costmap was
+                configured as a 3×3 m window centered on the robot. For the
+                curved NavFn path used in our benchmark, the entire planned
+                route fell outside this window, causing MPPI to receive a path
+                with zero poses and immediately abort with the error "Resulting
+                plan has 0 poses in it".
               </p>
               <div class="bug-fix">
-                Fix: added <code>computePathHeading()</code> — detects identity
-                quaternions and falls back to <code>atan2(dy, dx)</code> between
-                adjacent waypoints.
+                The fix was to enlarge the local costmap to 8×8 m, sufficient to
+                contain several seconds of planned path at all times.
               </div>
             </div>
 
             <div class="bug-card moderate">
               <div class="bug-header">
-                <span class="bug-num">BUG 5 · MODERATE</span>
-                <span class="bug-title">Progress Checker False Abort</span>
+                <span class="bug-num">BUG 3 · MODERATE</span>
+                <span class="bug-title">MPPI: Incorrect Parameter Schema</span>
               </div>
               <p class="bug-body">
-                <code>required_movement_radius: 0.5 m</code> with
-                <code>movement_time_allowance: 10 s</code> caused Nav2 to abort
-                the navigation task during the fine approach phase, when the
-                robot was making small adjustments within ~0.25 m of the goal.
+                The initial MPPI configuration used parameters drawn from an
+                older API which none of them are recognized by Nav2 Humble.
+                Critically, the configuration contained no critics list. Without
+                critics, MPPI has no cost function and generates arbitrary
+                trajectories with no perference for path-following.
               </p>
               <div class="bug-fix">
-                Fix: relaxed to <code>required_movement_radius: 0.25 m</code>,
-                <code>movement_time_allowance: 20 s</code>.
+                The configuration was replaced with the correct Nav2 Humble
+                schema, using time_steps, batch_size, model_dt, vx_std/wz_std,
+                vx_max/vx_min/wz_max, temperature, gamma, and motion_model,
+                along with a full critics list: ConstraintCritic,
+                ObstaclesCritic, GoalAngleCritic, PathAlignCritic,
+                PathFollowCritic, PathAngleCritic, and PreferForwardCritic.
               </div>
             </div>
 
             <div class="bug-card minor">
               <div class="bug-header">
-                <span class="bug-num">BUG 6 · MINOR</span>
-                <span class="bug-title">Unsigned Integer Underflow</span>
+                <span class="bug-num">BUG 4 · MINOR</span>
+                <span class="bug-title">MPPI: Plugin Class Name Mismatch</span>
               </div>
               <p class="bug-body">
-                <code>global_plan_.poses.size() - 1</code> on a single-pose path
-                underflows <code>size_t</code> from 0 to a huge positive integer
-                (~2⁶⁴), causing out-of-bounds memory access and undefined
-                behavior on single-waypoint paths.
+                When configuring MPPI as a benchmark baseline, the YAML
+                parameter files specified the controller plugin as
+                mppi_controller/MPPIController. However, this class does not
+                exist in Nav2 Humble. The correct name is
+                <code>nav2_mppi_controller::MPPIController</code>. Nav2 loads
+                controllers via pluginlib at runtime, so this error produced a
+                silent load failure rather than a compile-time error, which made
+                it non-obvious to diagnose.
               </p>
               <div class="bug-fix">
-                Fix: early return guard —
-                <code
-                  >if (global_plan_.poses.size() &lt; 2) return
-                  closest_idx;</code
-                >
-                at the top of <code>findLookaheadPoint()</code>.
+                The fix was to correct the plugin name in both
+                <code>mppi_navfn_params.yaml</code> and
+                <code>mppi_smac_params.yaml</code>.
               </div>
             </div>
-          </div>
-
-          <div
-            style="
-              margin-top: 24px;
-              padding: 16px 20px;
-              background: rgba(30, 138, 74, 0.06);
-              border: 1px solid rgba(30, 138, 74, 0.2);
-              border-radius: 6px;
-            "
-          >
-            <strong style="color: var(--green)">Key finding:</strong>
-            <span style="color: var(--muted); font-size: 0.9rem">
-              All 6 bugs were fixed before any Q/R tuning. After the fixes, the
-              original spec gains (Q = diag(1,3,1), R = diag(1,0.5)) achieved
-              100% success across 5 repeated trials — zero tuning
-              required.</span
-            >
           </div>
         </div>
       </section>
@@ -1440,8 +529,8 @@
 
           <p>
             All runs: same Gazebo world (<code>turtlebot3_world</code>), same
-            start (default spawn), same goal $(x=2.0,\;y=0.5)$. Metrics computed
-            from rosbag recordings using odometry at ~20 Hz.
+            start $(x=-2.0,\;y=-0.5)$, same goal $(x=2.0,\;y=0.5)$. Metrics
+            computed from rosbag recordings using odometry at ~20 Hz.
           </p>
 
           <p
@@ -1455,7 +544,7 @@
               margin-top: 14px;
             "
           >
-            <strong style="color: #9a7200">Note on timing accuracy:</strong>
+            <strong style="color: #9a7200">Note:</strong>
             Reported <em>Time (s)</em> values are approximate. The benchmark
             workflow is manual — we start <code>ros2 bag record</code>, send the
             goal, and stop the bag with <code>Ctrl+C</code> once the robot
@@ -1672,7 +761,7 @@
       <section id="videos">
         <div class="container">
           <span class="section-label">06 — Simulation Videos</span>
-          <h2>Gazebo Runs</h2>
+          <h2>Gazebo Simulation</h2>
           <p>
             Six simulation recordings from the benchmark campaign. Each shows
             the TurtleBot3 Burger navigating from default spawn to goal $(2.0,
@@ -1769,21 +858,6 @@
             scenario in that trial — a limitation of single-run evaluation
             without statistical replication.
           </p>
-
-          <h3>Relevance to Course Material</h3>
-          <p>
-            This project directly builds on the course assignments. The Dubins
-            car model from A1/A2, linearized in A3's LQR assignment, is the same
-            model used here in the Nav2 plugin. The DARE-based steady-state gain
-            is equivalent to the infinite-horizon formulation from Tedrake's
-            Underactuated Robotics Ch. 8. Our custom C++ MPPI controller used in
-            the benchmark is a direct port of the MPPI implementation from A2 —
-            the same stochastic rollout strategy, now wrapped as a Nav2 plugin
-            and evaluated against LQR and DWB. AMCL localization, used
-            throughout the Nav2 stack, mirrors the MCL implementation from A1
-            Q3.
-          </p>
-
         </div>
       </section>
 
@@ -1797,66 +871,36 @@
             <div class="team-row">
               <div class="team-name">Tommy Oh</div>
               <div class="team-tasks">
-                C++ LQR solver (DARE, linearization, body-frame error); Nav2
-                plugin integration; MPPI controller config; Docker/devcontainer
-                setup.
+                Docker setup, Initial Nav2 plugin integration, LQR C++ DARE and
+                Solver Implementation, Automated Benchmark and Data Analysis
+                Script Implementation, Final Project Website / Report writeup.
               </div>
             </div>
             <div class="team-row">
               <div class="team-name">Ansh Aggarwal</div>
               <div class="team-tasks">
-                Nav2 plugin integration; all 6 controller bug fixes
-                (goal-reaching reliability); all 6 Nav2 config YAMLs
-                (controller+planner combos); baseline experiments.
+                Nav2 Plugin Integration, MPPI C++ Solver and Controller
+                implementation, LQR and MPPI Bug fixing, Data Analysis Script
+                Implementation, Final Project Presentation / Website writeup.
               </div>
             </div>
             <div class="team-row">
-              <div class="team-name">Nick (Daniel Senteu)</div>
+              <div class="team-name">Daniel Senteu</div>
               <div class="team-tasks">
-                Implementation spec; README documentation; Docker setup;
-                benchmark script development and bug fixes; Phase 5 benchmark
-                runs.
+                Nav2 Plugin Integration, MPPI C++ Solver and Controller
+                implementation, Nav2 YAML Parameter Tuning, Recording and
+                editing all 6 simulation videos, Final Project Presentation /
+                Report writeup.
               </div>
             </div>
             <div class="team-row">
-              <div class="team-name">JunHang Wu</div>
+              <div class="team-name">Nick (JunHang) Wu</div>
               <div class="team-tasks">
-                Phase 5 benchmark runs (all 6 controller×planner combos);
-                recording and data collection.
+                LQR C++ DARE Solver and Controller implementation, Nav2 YAML
+                Parameter Tuning, Analysis of Benchmark Results, 5-run LQR
+                Reliability Validation, Final Project Report writeup.
               </div>
             </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ── BIBTEX ── -->
-      <section id="bibtex">
-        <div class="container">
-          <span class="section-label">09 — Citation</span>
-          <h2>BibTeX</h2>
-          <div class="bibtex-box">
-            <button
-              class="copy-btn"
-              onclick="
-                navigator.clipboard.writeText(
-                  document.getElementById('bibtex-text').innerText,
-                );
-                this.innerText = 'Copied!';
-                setTimeout(() => (this.innerText = 'Copy'), 2000);
-              "
-            >
-              Copy
-            </button>
-            <pre id="bibtex-text">
-@misc{oh2026lqr,
-  title        = {{LQR} as a {Nav2} Controller Plugin for {TurtleBot3} Path Tracking},
-  author       = {Oh, Tommy and Aggarwal, Ansh and Senteu, Daniel and Wu, JunHang},
-  year         = {2026},
-  institution  = {Simon Fraser University},
-  note         = {{CMPT 720} Course Project, Spring 2026},
-  url          = {https://github.com/TommyOh0428/LQR-Controller}
-}</pre
-            >
           </div>
         </div>
       </section>
@@ -1865,7 +909,8 @@
       <footer>
         <div class="container">
           <p>
-            LQR Nav2 Controller · CMPT 720 Spring 2026 · Simon Fraser University
+            LQR Nav2 Controller Plugin · CMPT 419 / 720 Spring 2026 · Simon
+            Fraser University
           </p>
           <p style="margin-top: 8px">
             <a
@@ -1873,31 +918,7 @@
               target="_blank"
               >GitHub</a
             >
-            &nbsp;·&nbsp;
-            <a href="https://sfumars.com/" target="_blank">SFU MARS Lab</a>
             &nbsp;·&nbsp; Built with ROS2 Humble, Gazebo, Nav2
-          </p>
-          <p
-            style="
-              margin-top: 8px;
-              font-size: 0.75rem;
-              color: rgba(100, 96, 90, 0.55);
-            "
-          >
-            Page inspired by
-            <a
-              href="https://kir-.github.io/GMPC-IMLE/"
-              target="_blank"
-              style="color: inherit"
-              >GMPC-IMLE</a
-            >
-            and
-            <a
-              href="https://chongspace123.github.io/projects/threshold-strategy/"
-              target="_blank"
-              style="color: inherit"
-              >Threshold Strategy</a
-            >.
           </p>
         </div>
       </footer>

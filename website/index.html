@@ -99,7 +99,11 @@
               </svg>
               GitHub Repository
             </a>
-            <a class="btn btn-dim" href="#" aria-disabled="true">
+            <a
+              class="btn btn-outline"
+              href="../docs/report.pdf"
+              target="_blank"
+            >
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
@@ -111,9 +115,25 @@
                 />
                 <polyline points="14 2 14 8 20 8" />
               </svg>
-              Report (Incoming)
+              Report
             </a>
-            <a class="btn btn-outline" href="../docs/slide.pdf" target="_blank">
+            <a
+              class="btn btn-outline"
+              href="../docs/poster.pdf"
+              target="_blank"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <path d="M3 9h18M9 21V9" />
+              </svg>
+              Poster
+            </a>
+            <!-- <a class="btn btn-outline" href="../docs/slide.pdf" target="_blank">
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
@@ -124,8 +144,8 @@
                   d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"
                 />
               </svg>
-              Slides PDF
-            </a>
+              Presentation Slides
+            </a> -->
             <!-- <a class="btn btn-dim" href="#" aria-disabled="true">
               <svg
                 viewBox="0 0 24 24"
@@ -179,13 +199,13 @@
             <strong>DWB</strong> (Dynamic Window Approach) and
             <strong>MPPI</strong> (Model Predictive Path Integral) — across two
             planners (NavFn and Smac 2D), yielding a 3×2 comparison matrix. LQR
-            achieved the <strong>lowest time-to-goal (67.9 s)</strong> with
-            NavFn, strong path-tracking accuracy (mean CTE 0.083 m), and the
-            smoothest velocity commands of all three controllers. All 6
-            configurations successfully reached the goal. Crucially, our gains
-            required no tuning beyond the initial specification — all six
-            implementation bugs preventing goal-reaching were resolved through
-            code fixes alone.
+            achieved competitive time-to-goal (~25.5 s), sitting between the
+            faster DWB (~23 s) and slower MPPI (~37 s), while delivering
+            smoother velocity commands than DWB (dv/dt 0.185 vs 0.305). MPPI
+            with NavFn produced the tightest path-tracking overall (mean CTE
+            0.0120 m), whereas LQR (mean CTE ~0.052 m) and DWB (mean CTE ~0.048
+            m) were comparable. All 6 configurations successfully reached the
+            goal.
           </div>
         </div>
       </section>
@@ -620,124 +640,6 @@
             Orange rows = LQR configurations. Bold = per-column best using the
             averaged successful runs. Goal reports successful runs out of 3.
           </p>
-
-          <!-- <h3 style="margin-top: 40px">5-Run LQR Reliability Validation</h3>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Run</th>
-                  <th>Mean CTE (m)</th>
-                  <th>Max CTE (m)</th>
-                  <th>Std CTE</th>
-                  <th>dv/dt</th>
-                  <th>dω/dt</th>
-                  <th>Time (s)</th>
-                  <th>Goal</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td class="td-config">lqr_tuning_1</td>
-                  <td>0.159</td>
-                  <td>0.260</td>
-                  <td>0.060</td>
-                  <td>0.159</td>
-                  <td>1.006</td>
-                  <td>56.2</td>
-                  <td class="td-check">✓</td>
-                </tr>
-                <tr>
-                  <td class="td-config">lqr_tuning_2</td>
-                  <td class="td-best">0.109</td>
-                  <td class="td-best">0.244</td>
-                  <td class="td-best">0.054</td>
-                  <td class="td-best">0.148</td>
-                  <td class="td-best">0.971</td>
-                  <td class="td-best">33.7</td>
-                  <td class="td-check">✓</td>
-                </tr>
-                <tr>
-                  <td class="td-config">lqr_tuning_3</td>
-                  <td>0.139</td>
-                  <td>0.261</td>
-                  <td>0.040</td>
-                  <td>0.164</td>
-                  <td>1.009</td>
-                  <td>203.2 *</td>
-                  <td class="td-check">✓</td>
-                </tr>
-                <tr>
-                  <td class="td-config">lqr_tuning_4</td>
-                  <td>0.126</td>
-                  <td>0.296</td>
-                  <td>0.044</td>
-                  <td>0.146</td>
-                  <td>1.063</td>
-                  <td>71.6</td>
-                  <td class="td-check">✓</td>
-                </tr>
-                <tr>
-                  <td class="td-config">lqr_tuning_5</td>
-                  <td>0.146</td>
-                  <td>0.334</td>
-                  <td>0.096</td>
-                  <td>0.145</td>
-                  <td>1.128</td>
-                  <td>36.8</td>
-                  <td class="td-check">✓</td>
-                </tr>
-                <tr
-                  style="background: rgba(201, 95, 26, 0.06); font-weight: 600"
-                >
-                  <td class="td-config">Mean</td>
-                  <td>0.136</td>
-                  <td>0.279</td>
-                  <td>0.059</td>
-                  <td>0.152</td>
-                  <td>1.035</td>
-                  <td>~49 s</td>
-                  <td class="td-check">5/5</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <p style="font-size: 0.78rem; color: var(--muted)">
-            *Run 3 bag recording stopped late; actual navigation time was
-            comparable to other runs.
-          </p> -->
-
-          <!-- FIGURES -->
-          <h3 style="margin-top: 48px">Benchmark Plots</h3>
-
-          <div class="figure-block">
-            <img
-              src="assets/image.png"
-              alt="6-combo benchmark comparison: trajectory overlay, CTE over time, linear and angular velocity commands for all 6 controller-planner configurations"
-            />
-            <p class="figure-caption">
-              <strong>Figure. 1:</strong> 6-combo benchmark comparison.
-              Top-left: robot trajectory overlays with planned paths. Top-right:
-              cross-track error over time. Bottom-left: linear velocity
-              commands. Bottom-right: angular velocity commands. LQR+NavFn
-              (blue) demonstrates the cleanest, fastest trajectory. MPPI
-              configurations show significantly noisier velocity profiles.
-            </p>
-          </div>
-
-          <!-- <div class="figure-block">
-            <img
-              src="assets/benchmark_5run.png"
-              alt="5-run LQR reliability validation: trajectory, CTE, velocity commands across 5 repeated trials"
-            />
-            <p class="figure-caption">
-              <strong>Fig. 2:</strong> 5-run LQR reliability validation (same
-              gains, same start/goal, 5 independent trials). Consistent CTE
-              profiles and smooth velocity commands confirm the controller is
-              repeatable. Run 3 (green, extended time axis) reflects a late
-              bag-stop, not slow navigation.
-            </p>
-          </div> -->
         </div>
       </section>
 
@@ -814,33 +716,38 @@
 
           <h3>LQR vs DWB</h3>
           <p>
-            DWB achieved lower mean CTE (0.042 m vs 0.083 m for LQR+NavFn) but
-            at a significant time cost — LQR+NavFn was 2.7× faster (67.9 s vs
-            185.1 s). Smoothness was comparable: both controllers exhibit dv/dt
-            below 0.28 and dω/dt below 0.94. The closest DWB competitor,
-            DWB+Smac, nearly matched LQR on speed (66.4 s) while achieving lower
-            CTE — suggesting that planner choice matters significantly.
+            DWB was marginally faster than LQR — DWB+Smac reached the goal in
+            22.93 s vs 25.52 s for LQR+NavFn — and achieved slightly lower mean
+            CTE (0.0475–0.0489 m vs 0.0514–0.0538 m). However, LQR produced
+            substantially smoother commands: dv/dt 0.183–0.187 vs 0.299–0.311
+            for DWB, and dω/dt 0.478–0.946 vs 1.062–1.158. This confirms that
+            LQR's optimal control formulation naturally suppresses aggressive
+            velocity corrections that DWB's sampling heuristics permit.
           </p>
 
           <h3>LQR vs MPPI</h3>
           <p>
-            LQR clearly outperformed MPPI on every metric. MPPI+NavFn had the
-            worst mean CTE (0.146 m), a high time cost (197.2 s), and the most
-            aggressive velocity commands (dv/dt 1.09, dω/dt 2.68). MPPI's
-            sampling-based nature generated 2–3× more cmd_vel messages than LQR
-            or DWB, causing frequent small corrections that accumulated into
-            poor smoothness scores. This is consistent with the MPPI assignment
-            (A2) which describes how the stochastic rollout strategy trades off
-            optimality for computational tractability.
+            MPPI+NavFn achieved the best path-tracking accuracy of all
+            configurations — mean CTE 0.0120 m, max CTE 0.0548 m — and the
+            smoothest velocity profile (dv/dt 0.0860, dω/dt 0.1689). However,
+            this precision came at a 47% time penalty: MPPI+NavFn took 37.65 s
+            vs 25.52 s for LQR+NavFn. MPPI+Smac degraded significantly (mean CTE
+            0.0807 m, 36.48 s), suggesting MPPI's stochastic rollouts are
+            sensitive to path geometry. LQR offers a better speed-accuracy
+            trade-off when consistent performance across planners is required.
           </p>
 
           <h3>NavFn vs Smac 2D</h3>
           <p>
-            Smac 2D generally produces shorter, more geometrically direct paths,
-            which contributed to faster runs for DWB. The LQR+Smac run was
-            unexpectedly slow (334.6 s), likely due to a complex replanning
-            scenario in that trial — a limitation of single-run evaluation
-            without statistical replication.
+            LQR was nearly insensitive to planner choice — LQR+NavFn and
+            LQR+Smac produced nearly identical results (25.52 s vs 25.51 s, mean
+            CTE 0.0514 m vs 0.0538 m), reflecting the robustness of the
+            body-frame error formulation. DWB+Smac was the fastest overall
+            configuration at 22.93 s, benefiting from Smac's shorter, more
+            direct paths. MPPI showed the largest planner sensitivity: switching
+            from NavFn to Smac increased mean CTE by 6.7× (0.0120 m → 0.0807 m),
+            highlighting how MPPI's rollout distribution depends heavily on path
+            shape.
           </p>
         </div>
       </section>

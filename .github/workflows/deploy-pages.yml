@@ -30,6 +30,9 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
+      - name: Copy docs into website
+        run: cp -r docs website/
+
       - name: Upload website artifact
         uses: actions/upload-pages-artifact@v3
         with:

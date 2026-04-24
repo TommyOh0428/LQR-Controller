@@ -1,0 +1,23 @@
+{
+    "python.autoComplete.extraPaths": [
+        "/opt/ros/humble/lib/python3.10/site-packages",
+        "/opt/ros/humble/local/lib/python3.10/dist-packages"
+    ],
+    "python.analysis.extraPaths": [
+        "/opt/ros/humble/lib/python3.10/site-packages",
+        "/opt/ros/humble/local/lib/python3.10/dist-packages"
+    ],
+    "cSpell.words": [
+        "coefs", "Dubins", "ctrls", "dynsys", "traj", "Riccati",
+        "Linearizations","casadi","vertcat","opti","sumsqr","ipopt",
+        "linalg","figsize","markersize","linestyle","xlabel","ylabel",
+        "rclpy","colcon","NMPC","Jacobians","libtinfo","pythonic","Turtlebot3",
+        "instrctions","bringup","Teleoperation","cyclonedds","fastrtps","wlan",
+        "axhline","rosdep","imgs", "CMPT", "Linearizes", "Turtlebot","Aggarwal",
+        "Senteu","Ansh","Linearization","Linearizing","bmatrix","Ricatti","bigl",
+        "bigr","mathbf","Rosbag","Eigen","MPPI","xquartz","xhost","AMCL",
+        "gzclient","gzserver","pluginlib","Pieter", "Abbeel", "underactuated", "Tedrake", "ROBOTIS", "cwise",
+        "navfn", "smac", "beamskip", "teleop", "costmap", "rclcpp", "astar",
+        "deadband", "rosbags", "killpg", "getpgid", "pkill", "procs", "costmaps"
+    ]
+}
